@@ -1,0 +1,12 @@
+[package]
+name = "hunt-2"
+version = "0.1.0"
+authors = ["Michael <bausanomichal@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+bevy = "0.1"
+bevy_ecs = "0.1"
+rand = "0.7"
+cgmath = "0.17"
+shrinkwraprs = "0.3"
