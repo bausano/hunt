@@ -43,12 +43,12 @@ impl Prey {
     }
 
     /// Moves the prey towards another prey, a flock leader, in a straight line.
-    pub fn move_towards(&mut self, other: &Self) {
-        let distance = self.distance2(other.pos);
+    pub fn move_towards(&mut self, pos: Vector2) {
+        let distance = self.distance2(pos);
 
         // Based on the position of the leader and the self, decide how close
         // should we keep to the leader.
-        let pseudorandom_offset = (self.x + other.y) % 5.0;
+        let pseudorandom_offset = (self.x + pos.y) % 5.0;
         // We don't want to move too close to the flock leader.
         if distance < conf::prey::RADIUS * (2.0 + pseudorandom_offset) {
             return;
@@ -66,7 +66,7 @@ impl Prey {
             }
         };
 
-        self.pos.x = move_in_direction(self.x, other.x);
-        self.pos.y = move_in_direction(self.y, other.y);
+        self.pos.x = move_in_direction(self.x, pos.x);
+        self.pos.y = move_in_direction(self.y, pos.y);
     }
 }
