@@ -6,6 +6,4 @@
 
 use crate::prelude::*;
 
-pub struct Predator {
-    pos: Vector2,
-}
+pub struct Predator;

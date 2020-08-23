@@ -7,4 +7,3 @@ edition = "2018"
 [dependencies]
 bevy = "0.1"
 rand = "0.7"
-cgmath = "0.17"
