@@ -18,55 +18,37 @@ use {bevy::prelude::*, cgmath::MetricSpace};
 
 use crate::prelude::*;
 
+// Location of the prey sprite relative to the root.
+const PREY_PNG: &str = "assets/prey.png";
+
 /// Creates initial batch of prey.
-pub fn init(mut commands: Commands) {
+pub fn init(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    let texture_handle = asset_server
+        .load(PREY_PNG)
+        .expect("Cannot load prey sprite");
     for _ in 0..conf::prey::INITIAL_COUNT {
-        commands.spawn((Prey::new(),));
+        commands
+            .spawn(SpriteComponents {
+                material: materials.add(texture_handle.into()),
+                ..Default::default()
+            })
+            .with_bundle(Prey::new());
     }
 }
 
 /// Prey is represented with a position vector [TODO: and a velocity vector].
-#[derive(Debug, Shrinkwrap)]
-pub struct Prey {
-    #[shrinkwrap(main_field)]
-    pub pos: Vector2,
-}
+#[derive(Debug)]
+pub struct Prey;
 
 impl Prey {
     // Randomly positions the prey in the map.
-    fn new() -> Self {
+    fn new() -> (Self, Translation) {
         let rand_coord = || (rand::random::<usize>() % conf::MAP_SIZE) as f32;
 
-        Self {
-            pos: Vector2::new(rand_coord(), rand_coord()),
-        }
-    }
-
-    /// Moves the prey towards another prey, a flock leader, in a straight line.
-    pub fn move_towards(&mut self, pos: Vector2) {
-        let distance = self.distance2(pos);
-
-        // Based on the position of the leader and the self, decide how close
-        // should we keep to the leader.
-        let pseudorandom_offset = (self.x + pos.y) % 5.0;
-        // We don't want to move too close to the flock leader.
-        if distance < conf::prey::RADIUS * (2.0 + pseudorandom_offset) {
-            return;
-        }
-
-        // Based on current value of x/y coord, and given another value, move
-        // that value closer to the latter.
-        let move_in_direction = |current, towards| {
-            if towards > current {
-                current + conf::prey::MAX_SPEED
-            } else if current > conf::prey::MAX_SPEED {
-                current - conf::prey::MAX_SPEED
-            } else {
-                0.0
-            }
-        };
-
-        self.pos.x = move_in_direction(self.x, pos.x);
-        self.pos.y = move_in_direction(self.y, pos.y);
+        (Self, Translation::new(rand_coord(), rand_coord(), 0.0))
     }
 }

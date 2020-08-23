@@ -2,7 +2,7 @@
 
 /// The map is a square where a = MAP_SIZE. We use usize instead of f32 because
 /// the size of the map is tightly related to pixels, which are discreet.
-pub const MAP_SIZE: usize = 2047;
+pub const MAP_SIZE: usize = 2000;
 
 pub mod prey {
     //! Configuration for prey entity.
