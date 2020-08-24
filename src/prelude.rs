@@ -13,7 +13,7 @@ pub trait InstantiateRandom {
 
 impl InstantiateRandom for Translation {
     fn random() -> Self {
-        let rand_coord = || (rand::random::<usize>() % conf::MAP_SIZE) as f32;
+        let rand_coord = || rand::random::<usize>() as f32 % conf::MAP_SIZE;
         Self::new(rand_coord(), rand_coord(), 0.0)
     }
 }

@@ -14,8 +14,6 @@
 //! The catch is that the prey is faster than then predator. If the predators
 //! are not organized, they won't get fed.
 
-use bevy::prelude::*;
-
 use crate::prelude::*;
 
 // Location of the prey sprite relative to the root.
@@ -40,6 +38,16 @@ pub fn init(
     }
 }
 
+/// Calculation of flocking behavior is expensive. We undergo this calculation
+/// only few times a second.
+pub struct FlockUpdateTimer(Timer);
+
+impl Default for FlockUpdateTimer {
+    fn default() -> Self {
+        Self(Timer::new(conf::prey::RECALCULATE_FLOCKING, true))
+    }
+}
+
 /// Prey is represented with a position vector.
 #[derive(Debug)]
 pub struct Prey {
@@ -53,39 +61,73 @@ impl Prey {
     }
 
     fn steer_towards(&self, v: Vec3) -> Vec3 {
-        let v = v.normalized() * conf::prey::MAX_SPEED - self.vel;
-        v.max(conf::prey::MAX_STEERING_FORCE)
+        let v = v.normalize() * conf::prey::MAX_SPEED - self.vel;
+        v.min(Vec3::splat(conf::prey::MAX_STEERING_FORCE))
     }
 }
 
-pub fn flock(time: Res<Time>, mut prey_query: Query<(Entity, &mut Prey, &Translation)>) {
+/// Moves the prey based on its velocity vector.
+pub fn translate(time: Res<Time>, mut prey_query: Query<(&Prey, &mut Translation)>) {
+    for (prey, mut pos) in &mut prey_query.iter() {
+        let pos_vec = **pos + prey.vel * time.delta_seconds;
+        let pos_vec = pos_vec
+            .truncate()
+            .min(Vec2::splat(conf::MAP_SIZE as f32))
+            .max(Vec2::zero())
+            .extend(0.0);
+        *pos = pos_vec.into();
+    }
+}
+
+/// Simulates flocking behavior.
+/// Based on [source code][seb-boids] of an amazing [video][seb-vid], which is
+/// in turn based on [this paper][flocking-paper].
+///
+/// [seb-boids]: https://github.com/SebLague/Boids/tree/master
+/// [seb-vid]: https://www.youtube.com/watch?v=bqtqltqcQhw
+/// [flocking-paper]: http://www.cs.toronto.edu/~dt/siggraph97-course/cwr87
+pub fn flocking_behavior(
+    time: Res<Time>,
+    mut timer: ResMut<FlockUpdateTimer>,
+    mut prey_query: Query<(&mut Prey, &Translation)>,
+) {
+    // Ticks and checks that enough time has passed and its time to update the
+    // flocking again.
+    timer.0.tick(time.delta_seconds);
+    if !timer.0.finished {
+        return;
+    }
+
     struct PreyData<'a> {
-        entity: Entity,
         rf: Mut<'a, Prey>,
         pos: Vec3,
     }
 
+    // We collect all prey into a vec since we need to run a loop which
+    // calculates update to velocity vec with respect to all other prey in the
+    // game. This is not currently possible with the iterator.
     let prey_iter = &mut prey_query.iter();
     let mut prey = Vec::with_capacity(conf::prey::COUNT);
-    for (entity, p, translation) in prey_iter {
+    for (p, translation) in prey_iter {
         prey.push(PreyData {
-            entity,
             rf: p,
             pos: **translation,
         });
     }
 
-    #[derive(Default)]
-    struct PreyUpdate {
-        // Could be usize, but f32 saves us a conversion.
-        flockmates: f32,
-        heading_total: Vec3,
-        center_total: Vec3,
-    }
-
     for prey_index in 0..prey.len() {
         let iterated_prey = &prey[prey_index];
-        let mut update = PreyUpdate::default();
+
+        // How many other prey is nearby.
+        let mut flockmates = 0;
+        // Sums all heading vectors of all nearby flockmates.
+        let mut heading_dir = Vec3::zero();
+        // Sums all position vectors of all nearby flockmates.
+        let mut center_total = Vec3::zero();
+        // We calculate in which direction should we move to avoid other prey.
+        // We don't want prey to be too close to one another.
+        let mut separation_dir = Vec3::zero();
+
         for other_index in 0..prey.len() {
             if prey_index == other_index {
                 continue;
@@ -94,21 +136,75 @@ pub fn flock(time: Res<Time>, mut prey_query: Query<(Entity, &mut Prey, &Transla
             let offset = iterated_prey.pos - other_prey.pos;
             let sq_distance = offset.length_squared();
 
-            // TODO: Const
-            if sq_distance < conf::prey::VIEW {
-                update.flockmates += 1.0;
-                update.heading_total += other_prey.rf.vel;
-                update.center_total += other_prey.pos;
+            if sq_distance < conf::prey::VIEW_RADIUS.powi(2) {
+                flockmates += 1;
+                heading_dir += other_prey.rf.vel;
+                center_total += other_prey.pos;
 
-                // TODO: Separation heading.
+                // If prey is too close to each other, try change its direction
+                // so that they don't bump.
+                if sq_distance < conf::prey::AVOID_RADIUS.powi(2) {
+                    separation_dir += offset / sq_distance;
+                }
             }
         }
 
-        if update.flockmates != 0.0 {
-            let mut iterated_prey = &mut prey[prey_index];
-            let offset_to_flock_center =
-                (update.center_total / update.flockmates) - iterated_prey.pos;
-            let cohesion_force = iterated_prey.rf.steer_towards(offset_to_flock_center);
+        let iterated_prey = &mut prey[prey_index];
+        let mut acc = Vec3::zero();
+
+        // If the prey gets too close to a wall, we push it out.
+        if let Some(f) = wall_repelling_force(iterated_prey.pos) {
+            acc += iterated_prey.rf.steer_towards(f) * conf::prey::WALL_REPELLING_FORCE_WEIGHT;
         }
+
+        if flockmates > 0 {
+            let cohesion_force = {
+                let offset_to_flock_center = (center_total / flockmates as f32) - iterated_prey.pos;
+                iterated_prey.rf.steer_towards(offset_to_flock_center)
+            };
+            let alignment_force = iterated_prey.rf.steer_towards(heading_dir);
+            let separation_force = iterated_prey.rf.steer_towards(separation_dir);
+
+            acc += alignment_force * conf::prey::ALIGNMENT_FORCE_WEIGHT;
+            acc += cohesion_force * conf::prey::COHESION_FORCE_WEIGHT;
+            acc += separation_force * conf::prey::SEPARATION_FORCE_WEIGHT;
+        }
+
+        // Updates the velocity vector of the prey.
+        let vel = &mut iterated_prey.rf.vel;
+        let dv = acc * conf::prey::RECALCULATE_FLOCKING.as_millis() as f32 / 1000.0;
+        *vel += dv;
+        let speed = vel.length();
+        if speed > 0.0 {
+            let direction = *vel / speed;
+            // Unfortunately clamp is still in nightly.
+            let speed = speed.max(conf::prey::MIN_SPEED).min(conf::prey::MAX_SPEED);
+            *vel = direction * speed;
+        }
+    }
+}
+
+// If the prey is too close to the wall, it attempts to run away from it.
+fn wall_repelling_force(pos: Vec3) -> Option<Vec3> {
+    let map_10p = conf::MAP_SIZE / 10.0;
+    let x = if pos.x() < map_10p {
+        Some(conf::prey::MAX_SPEED)
+    } else if pos.x() > conf::MAP_SIZE - map_10p {
+        Some(-conf::prey::MAX_SPEED)
+    } else {
+        None
+    };
+    let y = if pos.y() < map_10p {
+        Some(conf::prey::MAX_SPEED)
+    } else if pos.y() > conf::MAP_SIZE - map_10p {
+        Some(-conf::prey::MAX_SPEED)
+    } else {
+        None
+    };
+
+    if x.is_some() || y.is_some() {
+        Some(Vec3::new(x.unwrap_or(0.0), y.unwrap_or(0.0), 0.0))
+    } else {
+        None
     }
 }
