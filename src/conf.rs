@@ -9,6 +9,9 @@ pub mod prey {
 
     use std::time::Duration;
 
+    /// Location of the prey sprite relative to the root.
+    pub const ICON: &str = "assets/prey.png";
+
     /// Avoids bumping into another prey by repelling each other if they're too
     /// close.
     pub const AVOID_RADIUS: f32 = 120.0;
@@ -16,7 +19,7 @@ pub mod prey {
     /// This many prey will be spawned when the game starts and as predators
     /// eat prey, we respawn it in such a manner that there's approximately
     /// this much prey throughout the game.
-    pub const COUNT: usize = 100;
+    pub const COUNT: usize = 10;
 
     /// How many pixels per tick can a prey move. Make sure that this settings
     /// is always larger than the predators max speed.
@@ -35,8 +38,20 @@ pub mod prey {
     /// now and then and cache the direction vec.
     pub const RECALCULATE_FLOCKING: Duration = Duration::from_millis(50);
 
-    pub const WALL_REPELLING_FORCE_WEIGHT: f32 = 5.0;
-    pub const ALIGNMENT_FORCE_WEIGHT: f32 = 0.8;
-    pub const SEPARATION_FORCE_WEIGHT: f32 = 1.5;
-    pub const COHESION_FORCE_WEIGHT: f32 = 0.8;
+    pub mod weights {
+        pub const WALL_REPELLING_FORCE: f32 = 5.0;
+        pub const ALIGNMENT_FORCE: f32 = 0.8;
+        pub const SEPARATION_FORCE: f32 = 1.5;
+        pub const COHESION_FORCE: f32 = 0.8;
+    }
+}
+
+pub mod predator {
+    //! Configuration for predator entity.
+
+    /// Location of the prey sprite relative to the root.
+    pub const ICON: &str = "assets/predator.png";
+
+    /// It's important that the max speed is less than the preys.
+    pub const MAX_SPEED: f32 = 30.0;
 }

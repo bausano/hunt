@@ -16,8 +16,16 @@
 
 use crate::prelude::*;
 
-// Location of the prey sprite relative to the root.
-const PREY_PNG: &str = "assets/prey.png";
+/// Prey is represented with a position vector.
+#[derive(Debug)]
+pub struct Prey {
+    /// In what direction does the prey move and how fast.
+    pub vel: Vec3,
+}
+
+/// Calculation of flocking behavior is expensive. We undergo this calculation
+/// only few times a second.
+pub struct FlockUpdateTimer(Timer);
 
 /// Creates initial batch of prey.
 pub fn init(
@@ -26,7 +34,7 @@ pub fn init(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let texture_handle = asset_server
-        .load(PREY_PNG)
+        .load(conf::prey::ICON)
         .expect("Cannot load prey sprite");
     for _ in 0..conf::prey::COUNT {
         commands
@@ -34,25 +42,18 @@ pub fn init(
                 material: materials.add(texture_handle.into()),
                 ..Default::default()
             })
-            .with_bundle((Prey::new(), Translation::random()));
+            .with_bundle((
+                Prey::new(),
+                Translation::random(),
+                Rotation::default(),
+            ));
     }
 }
-
-/// Calculation of flocking behavior is expensive. We undergo this calculation
-/// only few times a second.
-pub struct FlockUpdateTimer(Timer);
 
 impl Default for FlockUpdateTimer {
     fn default() -> Self {
         Self(Timer::new(conf::prey::RECALCULATE_FLOCKING, true))
     }
-}
-
-/// Prey is represented with a position vector.
-#[derive(Debug)]
-pub struct Prey {
-    /// In what direction does the prey move and how fast.
-    pub vel: Vec3,
 }
 
 impl Prey {
@@ -67,8 +68,11 @@ impl Prey {
 }
 
 /// Moves the prey based on its velocity vector.
-pub fn translate(time: Res<Time>, mut prey_query: Query<(&Prey, &mut Translation)>) {
-    for (prey, mut pos) in &mut prey_query.iter() {
+pub fn translate(
+    time: Res<Time>,
+    mut prey_query: Query<(&Prey, &mut Translation, &mut Rotation)>,
+) {
+    for (prey, mut pos, mut rot) in &mut prey_query.iter() {
         let pos_vec = **pos + prey.vel * time.delta_seconds;
         let pos_vec = pos_vec
             .truncate()
@@ -76,6 +80,17 @@ pub fn translate(time: Res<Time>, mut prey_query: Query<(&Prey, &mut Translation
             .max(Vec2::zero())
             .extend(0.0);
         *pos = pos_vec.into();
+
+        // If the velocity vector is not zero vector, rotate the entity in the
+        // direction of its velocity.
+        if prey.vel.cmpne(Vec3::zero()).all() {
+            let vel_norm = prey.vel.normalize();
+            let curr_rot = rot.w();
+            // Normalized velocity, find the angle based on the size of the
+            // x component, and then shift it if the y component is negative.
+            let new_rot = vel_norm.x().acos() * vel_norm.y().signum();
+            *rot = Rotation::from_rotation_z(curr_rot - (curr_rot - new_rot));
+        }
     }
 }
 
@@ -154,31 +169,36 @@ pub fn flocking_behavior(
 
         // If the prey gets too close to a wall, we push it out.
         if let Some(f) = wall_repelling_force(iterated_prey.pos) {
-            acc += iterated_prey.rf.steer_towards(f) * conf::prey::WALL_REPELLING_FORCE_WEIGHT;
+            acc += iterated_prey.rf.steer_towards(f)
+                * conf::prey::weights::WALL_REPELLING_FORCE;
         }
 
         if flockmates > 0 {
             let cohesion_force = {
-                let offset_to_flock_center = (center_total / flockmates as f32) - iterated_prey.pos;
+                let offset_to_flock_center =
+                    (center_total / flockmates as f32) - iterated_prey.pos;
                 iterated_prey.rf.steer_towards(offset_to_flock_center)
             };
             let alignment_force = iterated_prey.rf.steer_towards(heading_dir);
-            let separation_force = iterated_prey.rf.steer_towards(separation_dir);
+            let separation_force =
+                iterated_prey.rf.steer_towards(separation_dir);
 
-            acc += alignment_force * conf::prey::ALIGNMENT_FORCE_WEIGHT;
-            acc += cohesion_force * conf::prey::COHESION_FORCE_WEIGHT;
-            acc += separation_force * conf::prey::SEPARATION_FORCE_WEIGHT;
+            acc += alignment_force * conf::prey::weights::ALIGNMENT_FORCE;
+            acc += cohesion_force * conf::prey::weights::COHESION_FORCE;
+            acc += separation_force * conf::prey::weights::SEPARATION_FORCE;
         }
 
         // Updates the velocity vector of the prey.
         let vel = &mut iterated_prey.rf.vel;
-        let dv = acc * conf::prey::RECALCULATE_FLOCKING.as_millis() as f32 / 1000.0;
+        let dv =
+            acc * conf::prey::RECALCULATE_FLOCKING.as_millis() as f32 / 1000.0;
         *vel += dv;
         let speed = vel.length();
         if speed > 0.0 {
             let direction = *vel / speed;
             // Unfortunately clamp is still in nightly.
-            let speed = speed.max(conf::prey::MIN_SPEED).min(conf::prey::MAX_SPEED);
+            let speed =
+                speed.max(conf::prey::MIN_SPEED).min(conf::prey::MAX_SPEED);
             *vel = direction * speed;
         }
     }
