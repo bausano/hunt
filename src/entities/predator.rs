@@ -44,53 +44,48 @@ pub fn keyboard_movement(
     mut predator_query: Query<(&Predator, &KeyboardControlled)>,
 ) {
     for (predator, _) in &mut predator_query.iter() {
-        let mut direction = 0.0;
-        if keyboard_input.pressed(KeyCode::Left) {
-            direction -= 1.0;
+        // TODO: This should probably be rotated with respect to the current
+        // velocity direction. We use normalized velocity vec as the base, add
+        // unit vec in appropriate direction, and change base to standard.
+        let x_vel = if keyboard_input.pressed(KeyCode::Left) {
+            -1.0
+        } else if keyboard_input.pressed(KeyCode::Right) {
+            1.0
+        } else {
+            0.0
+        };
+
+        let y_vel = if keyboard_input.pressed(KeyCode::Down) {
+            -1.0
+        } else if keyboard_input.pressed(KeyCode::Up) {
+            1.0
+        } else {
+            0.0
+        };
+
+        let vel_change = Vec3::new(x_vel, y_vel, 0.0)
+            * time.delta_seconds
+            * conf::predator::MAX_SPEED;
+
+        if vel_change != Vec3::zero() {
+            // Acquires the lock to update velocity.
+            let mut vel = predator.vel.lock();
+
+            // And adds the change in speed to the entity.
+            *vel = (*vel + vel_change).normalize() * conf::predator::MAX_SPEED;
         }
-
-        if keyboard_input.pressed(KeyCode::Right) {
-            direction += 1.0;
-        }
-
-        // Acquires the lock to update velocity.
-        let mut vel = predator.vel.lock();
-
-        // And adds a bit of speed to the entity.
-        *vel.x_mut() +=
-            time.delta_seconds * direction * conf::predator::MAX_SPEED;
-
-        // bound the paddle within the walls
-        // *translation.0.x_mut() = f32::max(-380.0, f32::min(380.0, translation.0.x()));
     }
 }
 
 /// Moves each predator based on its velocity vector.
-/// TODO: Deduplicate this code with prey translation possibly.
-pub fn translate(
+/// TODO: Make a for-each when bevy is fixed.
+pub fn nudge(
     time: Res<Time>,
     mut predator_query: Query<(&Predator, &mut Translation, &mut Rotation)>,
 ) {
     for (predator, mut pos, mut rot) in &mut predator_query.iter() {
         let vel = *predator.vel.lock();
-        let pos_vec = **pos + vel * time.delta_seconds;
-        let pos_vec = pos_vec
-            .truncate()
-            .min(Vec2::splat(conf::MAP_SIZE as f32))
-            .max(Vec2::zero())
-            .extend(0.0);
-        *pos = pos_vec.into();
-
-        // If the velocity vector is not zero vector, rotate the entity in the
-        // direction of its velocity.
-        if vel.cmpne(Vec3::zero()).all() {
-            let vel_norm = vel.normalize();
-            let curr_rot = rot.w();
-            // Normalized velocity, find the angle based on the size of the
-            // x component, and then shift it if the y component is negative.
-            let new_rot = vel_norm.x().acos() * vel_norm.y().signum();
-            *rot = Rotation::from_rotation_z(curr_rot - (curr_rot - new_rot));
-        }
+        super::nudge_entity(&time, vel, &mut pos, &mut rot);
     }
 }
 

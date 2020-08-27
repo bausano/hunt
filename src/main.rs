@@ -1,8 +1,8 @@
-use bevy::prelude::*;
-
 pub mod conf;
 mod entities;
 mod prelude;
+
+use bevy::prelude::*;
 
 fn main() {
     App::build()
@@ -12,9 +12,9 @@ fn main() {
         .add_startup_system(entities::prey::init.system())
         .add_resource(entities::prey::FlockUpdateTimer::default())
         .add_system(entities::prey::flocking_behavior.system())
-        .add_system(entities::prey::translate.system())
+        .add_system(entities::prey::nudge.system())
         .add_system(entities::predator::keyboard_movement.system())
-        .add_system(entities::predator::translate.system())
+        .add_system(entities::predator::nudge.system())
         .run();
 }
 

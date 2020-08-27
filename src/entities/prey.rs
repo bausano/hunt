@@ -67,30 +67,14 @@ impl Prey {
     }
 }
 
-/// Moves the prey based on its velocity vector.
-pub fn translate(
+/// Moves the prey based on its velocity vector and rotates it in the direction
+/// of the vel.
+pub fn nudge(
     time: Res<Time>,
     mut prey_query: Query<(&Prey, &mut Translation, &mut Rotation)>,
 ) {
     for (prey, mut pos, mut rot) in &mut prey_query.iter() {
-        let pos_vec = **pos + prey.vel * time.delta_seconds;
-        let pos_vec = pos_vec
-            .truncate()
-            .min(Vec2::splat(conf::MAP_SIZE as f32))
-            .max(Vec2::zero())
-            .extend(0.0);
-        *pos = pos_vec.into();
-
-        // If the velocity vector is not zero vector, rotate the entity in the
-        // direction of its velocity.
-        if prey.vel.cmpne(Vec3::zero()).all() {
-            let vel_norm = prey.vel.normalize();
-            let curr_rot = rot.w();
-            // Normalized velocity, find the angle based on the size of the
-            // x component, and then shift it if the y component is negative.
-            let new_rot = vel_norm.x().acos() * vel_norm.y().signum();
-            *rot = Rotation::from_rotation_z(curr_rot - (curr_rot - new_rot));
-        }
+        super::nudge_entity(&time, prey.vel, &mut pos, &mut rot);
     }
 }
 
@@ -159,7 +143,7 @@ pub fn flocking_behavior(
                 // If prey is too close to each other, try change its direction
                 // so that they don't bump.
                 if sq_distance < conf::prey::AVOID_RADIUS.powi(2) {
-                    separation_dir += offset / sq_distance;
+                    separation_dir += offset / (sq_distance + f32::EPSILON);
                 }
             }
         }
@@ -180,12 +164,15 @@ pub fn flocking_behavior(
                 iterated_prey.rf.steer_towards(offset_to_flock_center)
             };
             let alignment_force = iterated_prey.rf.steer_towards(heading_dir);
-            let separation_force =
-                iterated_prey.rf.steer_towards(separation_dir);
 
             acc += alignment_force * conf::prey::weights::ALIGNMENT_FORCE;
             acc += cohesion_force * conf::prey::weights::COHESION_FORCE;
-            acc += separation_force * conf::prey::weights::SEPARATION_FORCE;
+
+            if separation_dir != Vec3::zero() {
+                let separation_force =
+                    iterated_prey.rf.steer_towards(separation_dir);
+                acc += separation_force * conf::prey::weights::SEPARATION_FORCE;
+            }
         }
 
         // Updates the velocity vector of the prey.
