@@ -9,6 +9,7 @@ pub mod prey {
     use std::time::Duration;
 
     /// Location of the prey sprite relative to the root.
+    /// TODO: Consider compiling the asset into the binary.
     pub const ICON: &str = "assets/prey.png";
 
     /// Avoids bumping into another prey by repelling each other if they're too
@@ -38,7 +39,7 @@ pub mod prey {
     pub const RECALCULATE_FLOCKING: Duration = Duration::from_millis(50);
 
     pub mod weights {
-        pub const WALL_REPELLING_FORCE: f32 = 1.5;
+        pub const WALL_REPELLING_FORCE: f32 = 1.0;
         pub const ALIGNMENT_FORCE: f32 = 1.0;
         pub const SEPARATION_FORCE: f32 = 1.5;
         pub const COHESION_FORCE: f32 = 1.0;
@@ -49,6 +50,7 @@ pub mod predator {
     //! Configuration for predator entity.
 
     /// Location of the prey sprite relative to the root.
+    /// TODO: Consider compiling the asset into the binary.
     pub const ICON: &str = "assets/predator.png";
 
     /// It's important that the max speed is less than the preys.

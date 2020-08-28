@@ -22,6 +22,8 @@ so that your other projects aren't impacted:
 $ rustup override set nightly
 ```
 
+![Screenshot](docs/screenshot_2020_08_28.png)
+
 <!-- Invisible List of References -->
 [bevy]: https://github.com/bevyengine/bevy
 [bevy-setup]: https://bevyengine.org/learn/book/getting-started/setup/
