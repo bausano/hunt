@@ -2,7 +2,7 @@
 
 /// The map is a square where a = MAP_SIZE. We use usize instead of f32 because
 /// the size of the map is tightly related to pixels, which are discreet.
-pub const MAP_SIZE: f32 = 1800.0;
+pub const MAP_SIZE: f32 = 1000.0;
 
 pub mod prey {
     //! Configuration for prey entity.
@@ -54,4 +54,11 @@ pub mod predator {
 
     /// It's important that the max speed is less than the preys.
     pub const MAX_SPEED: f32 = 60.0;
+
+    /// From what distance do predators spot prey. It should be higher or equal
+    /// to prey's view radius.
+    pub const VIEW_RADIUS: f32 = 0.0;
+
+    /// If predator gets at least this close to a prey, it eats it.
+    pub const STRIKE_RADIUS: f32 = 0.0;
 }

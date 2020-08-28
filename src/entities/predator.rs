@@ -10,6 +10,9 @@ use crate::prelude::*;
 
 pub struct Predator {
     vel: Arc<Mutex<Vec3>>,
+    // Lists positions of prey nearby. With each tick, this value should get
+    // reset and repopulated.
+    nearby_prey: Vec<Vec3>,
 }
 
 pub struct KeyboardControlled;
@@ -89,10 +92,31 @@ pub fn nudge(
     }
 }
 
+/// Resets the state which is at the end of each tick sent to the actor which
+/// controls the predator. This method MUST be called in the beginning of each
+/// tick before any world update happens.
+/// TODO: It'd be nice to have this as foreach, but bevy types are broken for now.
+pub fn reset_world_view(mut predator_query: Query<&mut Predator>) {
+    for mut predator in &mut predator_query.iter() {
+        predator.nearby_prey.clear();
+    }
+}
+
 impl Predator {
     fn new() -> Self {
         Self {
             vel: Arc::new(Mutex::new(Vec3::zero())),
+            nearby_prey: Vec::new(),
         }
+    }
+
+    /// Adds a new prey position into its world view.
+    pub fn spot_prey(&mut self, at: Vec3) {
+        self.nearby_prey.push(at);
+    }
+
+    /// TODO
+    pub fn score(&mut self) {
+        println!("Prey eaten!");
     }
 }

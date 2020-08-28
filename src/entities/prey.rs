@@ -131,13 +131,16 @@ pub fn flocking_behavior(
             if prey_index == other_index {
                 continue;
             }
+
             let other_prey = &prey[other_index];
             let offset = iterated_prey.pos - other_prey.pos;
             let sq_distance = offset.length_squared();
 
             if sq_distance < conf::prey::VIEW_RADIUS.powi(2) {
                 flockmates += 1;
+                // Used to calculate affect of alignment force. See below.
                 heading_dir += other_prey.rf.vel;
+                // Used to calculate affect of cohesion force. See below.
                 center_total += other_prey.pos;
 
                 // If prey is too close to each other, try change its direction
@@ -159,15 +162,20 @@ pub fn flocking_behavior(
 
         if flockmates > 0 {
             let cohesion_force = {
+                // Weighted sum of positions of nearby flock mates, then an offset
+                // to current position is taken.
                 let offset_to_flock_center =
                     (center_total / flockmates as f32) - iterated_prey.pos;
                 iterated_prey.rf.steer_towards(offset_to_flock_center)
             };
-            let alignment_force = iterated_prey.rf.steer_towards(heading_dir);
-
-            acc += alignment_force * conf::prey::weights::ALIGNMENT_FORCE;
             acc += cohesion_force * conf::prey::weights::COHESION_FORCE;
 
+            // Aligns velocity vectors with nearby flockmates.
+            let alignment_force = iterated_prey.rf.steer_towards(heading_dir);
+            acc += alignment_force * conf::prey::weights::ALIGNMENT_FORCE;
+
+            // If there is some separation to be sustained with nearby
+            // flockmates, apply the force to the acceleration.
             if separation_dir != Vec3::zero() {
                 let separation_force =
                     iterated_prey.rf.steer_towards(separation_dir);
@@ -175,13 +183,14 @@ pub fn flocking_behavior(
             }
         }
 
-        // Updates the velocity vector of the prey.
-        let vel = &mut iterated_prey.rf.vel;
-        let dv =
-            acc * conf::prey::RECALCULATE_FLOCKING.as_millis() as f32 / 1000.0;
-        *vel += dv;
-        let speed = vel.length();
-        if speed > 0.0 {
+        // If the entity picked up some acceleration.
+        if acc != Vec3::zero() {
+            // Updates the velocity vector of the prey.
+            let vel = &mut iterated_prey.rf.vel;
+            let dv = acc * conf::prey::RECALCULATE_FLOCKING.as_millis() as f32
+                / 1000.0;
+            *vel += dv;
+            let speed = vel.length();
             let direction = *vel / speed;
             // Unfortunately clamp is still in nightly.
             let speed =
