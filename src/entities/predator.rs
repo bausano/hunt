@@ -6,7 +6,7 @@
 
 use {parking_lot::Mutex, std::sync::Arc};
 
-use crate::prelude::*;
+use crate::{prelude::*, properties::KeyboardControlled};
 
 pub struct Predator {
     vel: Arc<Mutex<Vec3>>,
@@ -14,8 +14,6 @@ pub struct Predator {
     // reset and repopulated.
     nearby_prey: Vec<Vec3>,
 }
-
-pub struct KeyboardControlled;
 
 /// Creates initial batch of prey.
 pub fn init(

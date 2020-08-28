@@ -14,7 +14,7 @@
 //! The catch is that the prey is faster than then predator. If the predators
 //! are not organized, they won't get fed.
 
-use crate::prelude::*;
+use crate::{prelude::*, resources::FlockUpdateTimer};
 
 /// Prey is represented with a position vector.
 #[derive(Debug)]
@@ -23,9 +23,16 @@ pub struct Prey {
     pub vel: Vec3,
 }
 
-/// Calculation of flocking behavior is expensive. We undergo this calculation
-/// only few times a second.
-pub struct FlockUpdateTimer(Timer);
+impl Prey {
+    fn new() -> Self {
+        Self { vel: Vec3::zero() }
+    }
+
+    fn steer_towards(&self, v: Vec3) -> Vec3 {
+        let v = v.normalize() * conf::prey::MAX_SPEED - self.vel;
+        v.min(Vec3::splat(conf::prey::MAX_STEERING_FORCE))
+    }
+}
 
 /// Creates initial batch of prey.
 pub fn init(
@@ -47,23 +54,6 @@ pub fn init(
                 Translation::random(),
                 Rotation::default(),
             ));
-    }
-}
-
-impl Default for FlockUpdateTimer {
-    fn default() -> Self {
-        Self(Timer::new(conf::prey::RECALCULATE_FLOCKING, true))
-    }
-}
-
-impl Prey {
-    fn new() -> Self {
-        Self { vel: Vec3::zero() }
-    }
-
-    fn steer_towards(&self, v: Vec3) -> Vec3 {
-        let v = v.normalize() * conf::prey::MAX_SPEED - self.vel;
-        v.min(Vec3::splat(conf::prey::MAX_STEERING_FORCE))
     }
 }
 
@@ -92,8 +82,8 @@ pub fn flocking_behavior(
 ) {
     // Ticks and checks that enough time has passed and its time to update the
     // flocking again.
-    timer.0.tick(time.delta_seconds);
-    if !timer.0.finished {
+    timer.tick(time.delta_seconds);
+    if !timer.is_finished() {
         return;
     }
 

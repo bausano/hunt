@@ -1,6 +1,10 @@
+#[macro_use] extern crate shrinkwraprs;
+
 pub mod conf;
-mod entities;
 mod prelude;
+mod entities;
+mod properties;
+mod resources;
 
 use bevy::prelude::*;
 
@@ -12,7 +16,7 @@ fn main() {
         .add_startup_system(entities::prey::init.system())
         // We only do update to the prey velocity every N ms to avoid needless
         // expensive computation.
-        .add_resource(entities::prey::FlockUpdateTimer::default())
+        .add_resource(resources::FlockUpdateTimer::default())
         // Must be called before any state updates.
         .add_system(entities::predator::reset_world_view.system())
         // Simulates flocking behavior for prey which isn't in danger. We should
