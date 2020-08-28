@@ -1,8 +1,9 @@
-#[macro_use] extern crate shrinkwraprs;
+#[macro_use]
+extern crate shrinkwraprs;
 
 pub mod conf;
-mod prelude;
 mod entities;
+mod prelude;
 mod properties;
 mod resources;
 
@@ -24,7 +25,6 @@ fn main() {
         // avoid needless computation.
         .add_system(entities::prey::flocking_behavior.system())
         .add_system(entities::predator::keyboard_movement.system())
-        .add_system(entities::prey::nudge.system())
         .add_system(entities::predator::nudge.system())
         .run();
 }

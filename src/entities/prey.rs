@@ -14,25 +14,9 @@
 //! The catch is that the prey is faster than then predator. If the predators
 //! are not organized, they won't get fed.
 
-use crate::{prelude::*, resources::FlockUpdateTimer};
+use crate::{prelude::*, resources::FlockUpdateTimer, properties::Velocity};
 
-/// Prey is represented with a position vector.
-#[derive(Debug)]
-pub struct Prey {
-    /// In what direction does the prey move and how fast.
-    pub vel: Vec3,
-}
-
-impl Prey {
-    fn new() -> Self {
-        Self { vel: Vec3::zero() }
-    }
-
-    fn steer_towards(&self, v: Vec3) -> Vec3 {
-        let v = v.normalize() * conf::prey::MAX_SPEED - self.vel;
-        v.min(Vec3::splat(conf::prey::MAX_STEERING_FORCE))
-    }
-}
+pub struct Prey;
 
 /// Creates initial batch of prey.
 pub fn init(
@@ -50,7 +34,8 @@ pub fn init(
                 ..Default::default()
             })
             .with_bundle((
-                Prey::new(),
+                Prey,
+                Velocity::default(),
                 Translation::random(),
                 Rotation::default(),
             ));
@@ -59,14 +44,14 @@ pub fn init(
 
 /// Moves the prey based on its velocity vector and rotates it in the direction
 /// of the vel.
-pub fn nudge(
-    time: Res<Time>,
-    mut prey_query: Query<(&Prey, &mut Translation, &mut Rotation)>,
-) {
-    for (prey, mut pos, mut rot) in &mut prey_query.iter() {
-        super::nudge_entity(&time, prey.vel, &mut pos, &mut rot);
-    }
-}
+// pub fn nudge(
+//     time: Res<Time>,
+//     mut prey_query: Query<(&Prey, &Velocity, &mut Translation, &mut Rotation)>,
+// ) {
+//     for (prey, mut pos, mut rot) in &mut prey_query.iter() {
+//         super::nudge_entity(&time, prey.vel, &mut pos, &mut rot);
+//     }
+// }
 
 /// Simulates flocking behavior.
 /// Based on [source code][seb-boids] of an amazing [video][seb-vid], which is
@@ -78,7 +63,7 @@ pub fn nudge(
 pub fn flocking_behavior(
     time: Res<Time>,
     mut timer: ResMut<FlockUpdateTimer>,
-    mut prey_query: Query<(&mut Prey, &Translation)>,
+    mut prey_query: Query<(&Prey, &mut Velocity, &Translation)>,
 ) {
     // Ticks and checks that enough time has passed and its time to update the
     // flocking again.
@@ -87,8 +72,9 @@ pub fn flocking_behavior(
         return;
     }
 
+    // We store prey information in this data type.
     struct PreyData<'a> {
-        rf: Mut<'a, Prey>,
+        vel: Mut<'a, Velocity>,
         pos: Vec3,
     }
 
@@ -97,9 +83,9 @@ pub fn flocking_behavior(
     // game. This is not currently possible with the iterator.
     let prey_iter = &mut prey_query.iter();
     let mut prey = Vec::with_capacity(conf::prey::COUNT);
-    for (p, translation) in prey_iter {
+    for (_, velocity, translation) in prey_iter {
         prey.push(PreyData {
-            rf: p,
+            vel: velocity,
             pos: **translation,
         });
     }
@@ -129,7 +115,7 @@ pub fn flocking_behavior(
             if sq_distance < conf::prey::VIEW_RADIUS.powi(2) {
                 flockmates += 1;
                 // Used to calculate affect of alignment force. See below.
-                heading_dir += other_prey.rf.vel;
+                heading_dir += **other_prey.vel;
                 // Used to calculate affect of cohesion force. See below.
                 center_total += other_prey.pos;
 
@@ -146,7 +132,7 @@ pub fn flocking_behavior(
 
         // If the prey gets too close to a wall, we push it out.
         if let Some(f) = wall_repelling_force(iterated_prey.pos) {
-            acc += iterated_prey.rf.steer_towards(f)
+            acc += steer_towards(*iterated_prey.vel, f)
                 * conf::prey::weights::WALL_REPELLING_FORCE;
         }
 
@@ -156,19 +142,19 @@ pub fn flocking_behavior(
                 // to current position is taken.
                 let offset_to_flock_center =
                     (center_total / flockmates as f32) - iterated_prey.pos;
-                iterated_prey.rf.steer_towards(offset_to_flock_center)
+                steer_towards(*iterated_prey.vel, offset_to_flock_center)
             };
             acc += cohesion_force * conf::prey::weights::COHESION_FORCE;
 
             // Aligns velocity vectors with nearby flockmates.
-            let alignment_force = iterated_prey.rf.steer_towards(heading_dir);
+            let alignment_force = steer_towards(*iterated_prey.vel, heading_dir);
             acc += alignment_force * conf::prey::weights::ALIGNMENT_FORCE;
 
             // If there is some separation to be sustained with nearby
             // flockmates, apply the force to the acceleration.
             if separation_dir != Vec3::zero() {
                 let separation_force =
-                    iterated_prey.rf.steer_towards(separation_dir);
+                    steer_towards(*iterated_prey.vel, separation_dir);
                 acc += separation_force * conf::prey::weights::SEPARATION_FORCE;
             }
         }
@@ -176,16 +162,16 @@ pub fn flocking_behavior(
         // If the entity picked up some acceleration.
         if acc != Vec3::zero() {
             // Updates the velocity vector of the prey.
-            let vel = &mut iterated_prey.rf.vel;
+            let mut vel = **iterated_prey.vel;
             let dv = acc * conf::prey::RECALCULATE_FLOCKING.as_millis() as f32
                 / 1000.0;
-            *vel += dv;
+            vel += dv;
             let speed = vel.length();
-            let direction = *vel / speed;
+            let direction = vel / speed;
             // Unfortunately clamp is still in nightly.
             let speed =
                 speed.max(conf::prey::MIN_SPEED).min(conf::prey::MAX_SPEED);
-            *vel = direction * speed;
+            *iterated_prey.vel = (direction * speed).into();
         }
     }
 }
@@ -213,4 +199,10 @@ fn wall_repelling_force(pos: Vec3) -> Option<Vec3> {
     } else {
         None
     }
+}
+
+/// Given prey's current velocity, we apply force to it.
+fn steer_towards(velocity: Velocity, force: Vec3) -> Vec3 {
+    let v = force.normalize() * conf::prey::MAX_SPEED - *velocity;
+    v.min(Vec3::splat(conf::prey::MAX_STEERING_FORCE))
 }

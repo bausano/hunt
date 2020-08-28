@@ -1,4 +1,3 @@
-
 use crate::prelude::*;
 
 /// Calculation of flocking behavior is expensive. We undergo this calculation
