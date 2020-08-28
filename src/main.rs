@@ -1,3 +1,11 @@
+//! ECS system splits our logic into three main modules:
+//! * entities: predators and prey
+//! * components
+//! * resources
+//!
+//! TODO: There's also net modules for UDP communication with actors that
+//! control predator entities.
+
 #[macro_use]
 extern crate shrinkwraprs;
 
@@ -12,7 +20,7 @@ use bevy::prelude::*;
 fn main() {
     App::build()
         .add_default_plugins()
-        .add_startup_system(setup.system())
+        .add_startup_system(camera.system())
         .add_startup_system(entities::predator::init.system())
         .add_startup_system(entities::prey::init.system())
         // We only do update to the prey velocity every N ms to avoid needless
@@ -33,10 +41,10 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands) {
+// TODO: Let the viewer choose which predator to focus on or every
+// 10s change predator focus. Alternatively create a window for each.
+fn camera(mut commands: Commands) {
     commands.spawn(Camera2dComponents {
-        // TODO: Let the viewer choose which predator to focus on or every
-        // 10s change predator focus. Alternatively create a window for each.
         translation: Translation::new(
             conf::MAP_SIZE as f32 / 2.0,
             conf::MAP_SIZE as f32 / 2.0,

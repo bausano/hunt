@@ -15,6 +15,13 @@ Built with [bevy]. Bevy uses LLD linker to speed up the linking process.
 don't wish to use the LLD linker you might need to delete or rename the
 `.cargo/config` file.
 
+You will need the nightly compiler. You can override it on per project basis
+so that your other projects aren't impacted:
+
+```
+$ rustup override set nightly
+```
+
 <!-- Invisible List of References -->
 [bevy]: https://github.com/bevyengine/bevy
 [bevy-setup]: https://bevyengine.org/learn/book/getting-started/setup/

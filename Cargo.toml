@@ -1,5 +1,5 @@
 [package]
-name = "hunt-2"
+name = "hunt"
 version = "0.1.0"
 authors = ["Michael <bausanomichal@gmail.com>"]
 edition = "2018"

@@ -1381,7 +1381,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hunt-2"
+name = "hunt"
 version = "0.1.0"
 dependencies = [
  "bevy",

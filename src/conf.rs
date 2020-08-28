@@ -1,7 +1,6 @@
 //! Contains global game configuration.
 
-/// The map is a square where a = MAP_SIZE. We use usize instead of f32 because
-/// the size of the map is tightly related to pixels, which are discreet.
+/// The map is a square where a = MAP_SIZE.
 pub const MAP_SIZE: f32 = 1000.0;
 
 pub mod prey {
@@ -36,7 +35,7 @@ pub mod prey {
 
     /// Calculating the flocking behavior is expensive. Let's do it only every
     /// now and then and cache the direction vec.
-    pub const RECALCULATE_FLOCKING: Duration = Duration::from_millis(5);
+    pub const RECALCULATE_FLOCKING: Duration = Duration::from_millis(50);
 
     pub mod weights {
         pub const WALL_REPELLING_FORCE: f32 = 1.5;

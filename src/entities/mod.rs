@@ -82,10 +82,12 @@ pub fn interact(
 
         if !predators_which_eat_me.is_empty() {
             for predator_index in predators_which_eat_me {
-                predators.get_mut(predator_index).map(|p| p.rf.score());
+                if let Some(predator) = predators.get_mut(predator_index) {
+                    predator.rf.score();
+                }
             }
 
-        // TODO: Kill the prey. We can have respawning procedure impl later.
+            // TODO: Kill the prey. We can have respawning procedure impl later.
         } else {
             if !predators_which_i_see.is_empty() {
                 println!("I see a predator.");
@@ -94,9 +96,10 @@ pub fn interact(
 
             for predator_index in predators_which_see_me {
                 println!("I see a prey.");
-                predators
-                    .get_mut(predator_index)
-                    .map(|p| p.rf.spot_prey(**pos));
+
+                if let Some(predator) = predators.get_mut(predator_index) {
+                    predator.rf.spot_prey(**pos);
+                }
             }
         }
     }

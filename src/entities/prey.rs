@@ -83,12 +83,11 @@ pub fn flocking_behavior(
         // We don't want prey to be too close to one another.
         let mut separation_dir = Vec3::zero();
 
-        for other_index in 0..prey.len() {
+        for (other_index, other_prey) in prey.iter().enumerate() {
             if prey_index == other_index {
                 continue;
             }
 
-            let other_prey = &prey[other_index];
             let offset = iterated_prey.pos - other_prey.pos;
             let sq_distance = offset.length_squared();
 
