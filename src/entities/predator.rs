@@ -3,10 +3,12 @@
 //!
 //! A predator is slower than a prey, therefore predators must cooperate with
 //! each other in order to score points.
+//!
+//! A predator can also be controlled by keyboard for debugging purposes.
 
 use crate::{
+    components::{KeyboardControlled, Velocity},
     prelude::*,
-    properties::{KeyboardControlled, Velocity},
 };
 
 pub struct Predator {
@@ -40,55 +42,22 @@ pub fn init(
 }
 
 /// Moves those predators which are controlled by keyboard.
+/// TODO: It'd be nice to have this method deleted and use only the parent once.
+/// However I don't know how to check whether an entity is prey or predator.
 pub fn keyboard_movement(
     time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut predator_query: Query<(&Predator, &KeyboardControlled, &mut Velocity)>,
+    mut predator_query: Query<(&mut Velocity, &Predator, &KeyboardControlled)>,
 ) {
-    for (_, _, mut vel) in &mut predator_query.iter() {
-        // TODO: This should probably be rotated with respect to the current
-        // velocity direction. We use normalized velocity vec as the base, add
-        // unit vec in appropriate direction, and change base to standard.
-        let x_vel = if keyboard_input.pressed(KeyCode::Left) {
-            -1.0
-        } else if keyboard_input.pressed(KeyCode::Right) {
-            1.0
-        } else {
-            0.0
-        };
-
-        let y_vel = if keyboard_input.pressed(KeyCode::Down) {
-            -1.0
-        } else if keyboard_input.pressed(KeyCode::Up) {
-            1.0
-        } else {
-            0.0
-        };
-
-        let vel_change = Vec3::new(x_vel, y_vel, 0.0)
-            * time.delta_seconds
-            * conf::predator::MAX_SPEED;
-
-        if vel_change != Vec3::zero() {
-            // And adds the change in speed to the entity.
-            *vel = ((**vel + vel_change).normalize()
-                * conf::predator::MAX_SPEED)
-                .into();
-        }
+    for (mut vel, ..) in &mut predator_query.iter() {
+        super::keyboard_movement(
+            &time,
+            &keyboard_input,
+            &mut vel,
+            conf::predator::MAX_SPEED,
+        )
     }
 }
-
-/// Moves each predator based on its velocity vector.
-/// TODO: Make a for-each when bevy is fixed.
-// pub fn nudge(
-//     time: Res<Time>,
-//     mut predator_query: Query<(&Predator, &mut Translation, &mut Rotation)>,
-// ) {
-//     for (predator, mut pos, mut rot) in &mut predator_query.iter() {
-//         let vel = *predator.vel.lock();
-//         super::nudge_entity(&time, vel, &mut pos, &mut rot);
-//     }
-// }
 
 /// Resets the state which is at the end of each tick sent to the actor which
 /// controls the predator. This method MUST be called in the beginning of each
@@ -101,12 +70,6 @@ pub fn reset_world_view(mut predator_query: Query<&mut Predator>) {
 }
 
 impl Predator {
-    fn new() -> Self {
-        Self {
-            nearby_prey: Vec::new(),
-        }
-    }
-
     /// Adds a new prey position into its world view.
     pub fn spot_prey(&mut self, at: Vec3) {
         self.nearby_prey.push(at);
@@ -115,5 +78,11 @@ impl Predator {
     /// TODO
     pub fn score(&mut self) {
         println!("Prey eaten!");
+    }
+
+    fn new() -> Self {
+        Self {
+            nearby_prey: Vec::new(),
+        }
     }
 }

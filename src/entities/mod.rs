@@ -1,10 +1,27 @@
+//! Prey and predators, as the name suggests, is a game where predator hunt prey.
+//! Is a predator gets to certain distance of prey, they can see it. If the
+//! predator gets closer, the prey can see them. If they get very close, they
+//! eat the prey.
+//!
+//! Prey is faster than predator, hence predators must cooperate.
+//!
+//! ```text
+//!                         🐺
+//!                        /
+//!                      |/_
+//!                      🐑<--------🐺---->🐑 . . . >
+//!                     .
+//!                    .
+//!                  \._
+//! ```
+
 pub mod predator;
 pub mod prey;
 
 pub use predator::Predator;
 pub use prey::Prey;
 
-use crate::{prelude::*, properties::Velocity};
+use crate::{components::Velocity, prelude::*};
 
 /// Iterates over all prey in the system and all predators. If a prey is close
 /// to a predator, it checks whether the predator can see it or whether it's
@@ -109,5 +126,41 @@ pub fn nudge(
             let new_rot = vel_norm.x().acos() * vel_norm.y().signum();
             *rot = Rotation::from_rotation_z(new_rot);
         }
+    }
+}
+
+// Moves those entities which are controlled by a keyboard.
+//
+fn keyboard_movement(
+    time: &Time,
+    keyboard_input: &Input<KeyCode>,
+    vel: &mut Velocity,
+    max_speed: f32,
+) {
+    // TODO: This should probably be rotated with respect to the current
+    // velocity direction. We use normalized velocity vec as the base, add
+    // unit vec in appropriate direction, and change base to standard.
+    let x_vel = if keyboard_input.pressed(KeyCode::Left) {
+        -1.0
+    } else if keyboard_input.pressed(KeyCode::Right) {
+        1.0
+    } else {
+        0.0
+    };
+
+    let y_vel = if keyboard_input.pressed(KeyCode::Down) {
+        -1.0
+    } else if keyboard_input.pressed(KeyCode::Up) {
+        1.0
+    } else {
+        0.0
+    };
+
+    let vel_change =
+        Vec3::new(x_vel, y_vel, 0.0) * time.delta_seconds * max_speed;
+
+    if vel_change != Vec3::zero() {
+        // And adds the change in speed to the entity.
+        *vel = ((**vel + vel_change).normalize() * max_speed).into();
     }
 }

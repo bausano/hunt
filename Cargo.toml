@@ -3,6 +3,7 @@ name = "hunt-2"
 version = "0.1.0"
 authors = ["Michael <bausanomichal@gmail.com>"]
 edition = "2018"
+description = "Simple game server designed to train RL actors."
 
 [dependencies]
 bevy = "0.1"

@@ -1,20 +1,11 @@
-//! Prey entities are simple creatures. They flock around a few individuals,
-//! flock leaders, and when threatened, they run away from the closer predator
-//! along the vector formed by predators position and its own position.
-//!
-//!
-//!                         🐺
-//!                        /
-//!                      |/_
-//!                      🐑<--------🐺---->🐑 . . . >
-//!                     .
-//!                    .
-//!                  \._
+//! Prey entities are simple creatures. They flock around other prey and when
+//! threatened, they run away from the closer predator along the vector formed
+//! by predators position and its own position.
 //!
 //! The catch is that the prey is faster than then predator. If the predators
 //! are not organized, they won't get fed.
 
-use crate::{prelude::*, properties::Velocity, resources::FlockUpdateTimer};
+use crate::{components::Velocity, prelude::*, resources::FlockUpdateTimer};
 
 pub struct Prey;
 
@@ -41,17 +32,6 @@ pub fn init(
             ));
     }
 }
-
-/// Moves the prey based on its velocity vector and rotates it in the direction
-/// of the vel.
-// pub fn nudge(
-//     time: Res<Time>,
-//     mut prey_query: Query<(&Prey, &Velocity, &mut Translation, &mut Rotation)>,
-// ) {
-//     for (prey, mut pos, mut rot) in &mut prey_query.iter() {
-//         super::nudge_entity(&time, prey.vel, &mut pos, &mut rot);
-//     }
-// }
 
 /// Simulates flocking behavior.
 /// Based on [source code][seb-boids] of an amazing [video][seb-vid], which is

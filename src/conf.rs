@@ -57,8 +57,8 @@ pub mod predator {
 
     /// From what distance do predators spot prey. It should be higher or equal
     /// to prey's view radius.
-    pub const VIEW_RADIUS: f32 = 0.0;
+    pub const VIEW_RADIUS: f32 = 250.0;
 
     /// If predator gets at least this close to a prey, it eats it.
-    pub const STRIKE_RADIUS: f32 = 0.0;
+    pub const STRIKE_RADIUS: f32 = 30.0;
 }

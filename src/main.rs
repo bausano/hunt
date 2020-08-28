@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate shrinkwraprs;
 
+mod components;
 pub mod conf;
 mod entities;
 mod prelude;
-mod properties;
 mod resources;
 
 use bevy::prelude::*;
