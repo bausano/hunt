@@ -4,12 +4,12 @@
 //! A predator is slower than a prey, therefore predators must cooperate with
 //! each other in order to score points.
 
-use {parking_lot::Mutex, std::sync::Arc};
-
-use crate::{prelude::*, properties::KeyboardControlled};
+use crate::{
+    prelude::*,
+    properties::{KeyboardControlled, Velocity},
+};
 
 pub struct Predator {
-    vel: Arc<Mutex<Vec3>>,
     // Lists positions of prey nearby. With each tick, this value should get
     // reset and repopulated.
     nearby_prey: Vec<Vec3>,
@@ -32,6 +32,7 @@ pub fn init(
         })
         .with_bundle((
             Predator::new(),
+            Velocity::default(),
             Translation::random(),
             Rotation::default(),
             KeyboardControlled,
@@ -42,9 +43,9 @@ pub fn init(
 pub fn keyboard_movement(
     time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut predator_query: Query<(&Predator, &KeyboardControlled)>,
+    mut predator_query: Query<(&Predator, &KeyboardControlled, &mut Velocity)>,
 ) {
-    for (predator, _) in &mut predator_query.iter() {
+    for (_, _, mut vel) in &mut predator_query.iter() {
         // TODO: This should probably be rotated with respect to the current
         // velocity direction. We use normalized velocity vec as the base, add
         // unit vec in appropriate direction, and change base to standard.
@@ -69,26 +70,25 @@ pub fn keyboard_movement(
             * conf::predator::MAX_SPEED;
 
         if vel_change != Vec3::zero() {
-            // Acquires the lock to update velocity.
-            let mut vel = predator.vel.lock();
-
             // And adds the change in speed to the entity.
-            *vel = (*vel + vel_change).normalize() * conf::predator::MAX_SPEED;
+            *vel = ((**vel + vel_change).normalize()
+                * conf::predator::MAX_SPEED)
+                .into();
         }
     }
 }
 
 /// Moves each predator based on its velocity vector.
 /// TODO: Make a for-each when bevy is fixed.
-pub fn nudge(
-    time: Res<Time>,
-    mut predator_query: Query<(&Predator, &mut Translation, &mut Rotation)>,
-) {
-    for (predator, mut pos, mut rot) in &mut predator_query.iter() {
-        let vel = *predator.vel.lock();
-        super::nudge_entity(&time, vel, &mut pos, &mut rot);
-    }
-}
+// pub fn nudge(
+//     time: Res<Time>,
+//     mut predator_query: Query<(&Predator, &mut Translation, &mut Rotation)>,
+// ) {
+//     for (predator, mut pos, mut rot) in &mut predator_query.iter() {
+//         let vel = *predator.vel.lock();
+//         super::nudge_entity(&time, vel, &mut pos, &mut rot);
+//     }
+// }
 
 /// Resets the state which is at the end of each tick sent to the actor which
 /// controls the predator. This method MUST be called in the beginning of each
@@ -103,7 +103,6 @@ pub fn reset_world_view(mut predator_query: Query<&mut Predator>) {
 impl Predator {
     fn new() -> Self {
         Self {
-            vel: Arc::new(Mutex::new(Vec3::zero())),
             nearby_prey: Vec::new(),
         }
     }

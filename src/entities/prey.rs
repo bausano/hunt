@@ -14,7 +14,7 @@
 //! The catch is that the prey is faster than then predator. If the predators
 //! are not organized, they won't get fed.
 
-use crate::{prelude::*, resources::FlockUpdateTimer, properties::Velocity};
+use crate::{prelude::*, properties::Velocity, resources::FlockUpdateTimer};
 
 pub struct Prey;
 
@@ -147,7 +147,8 @@ pub fn flocking_behavior(
             acc += cohesion_force * conf::prey::weights::COHESION_FORCE;
 
             // Aligns velocity vectors with nearby flockmates.
-            let alignment_force = steer_towards(*iterated_prey.vel, heading_dir);
+            let alignment_force =
+                steer_towards(*iterated_prey.vel, heading_dir);
             acc += alignment_force * conf::prey::weights::ALIGNMENT_FORCE;
 
             // If there is some separation to be sustained with nearby

@@ -4,12 +4,12 @@ pub mod prey;
 pub use predator::Predator;
 pub use prey::Prey;
 
-use crate::prelude::*;
+use crate::{prelude::*, properties::Velocity};
 
 /// Iterates over all prey in the system and all predators. If a prey is close
 /// to a predator, it checks whether the predator can see it or whether it's
 /// been eaten.
-pub fn mark_prey_in_danger(
+pub fn interact(
     mut prey_query: Query<(&mut Prey, &mut Translation)>,
     mut predator_query: Query<(&mut Predator, &Translation)>,
 ) {
@@ -23,7 +23,7 @@ pub fn mark_prey_in_danger(
     // issues.
     let predator_iter = &mut predator_query.iter();
     let mut predators: Vec<_> = Vec::new();
-    for (mut predator, pos) in predator_iter {
+    for (predator, pos) in predator_iter {
         predators.push(PredatorData {
             rf: predator,
             pos: **pos,
@@ -32,7 +32,7 @@ pub fn mark_prey_in_danger(
 
     // This is an inefficient n*k loop, however for our purposes of running the
     // game with well < 10 predators and < 1000 prey it's ok.
-    for (mut prey, mut pos) in &mut prey_query.iter() {
+    for (_, pos) in &mut prey_query.iter() {
         // Collects relationships prey has towards predators.
         let mut predators_which_eat_me = vec![];
         let mut predators_which_see_me = vec![];
@@ -71,10 +71,12 @@ pub fn mark_prey_in_danger(
         // TODO: Kill the prey. We can have respawning procedure impl later.
         } else {
             if !predators_which_i_see.is_empty() {
+                println!("I see a predator.");
                 // TODO: Update the prey's velocity.
             }
 
             for predator_index in predators_which_see_me {
+                println!("I see a prey.");
                 predators
                     .get_mut(predator_index)
                     .map(|p| p.rf.spot_prey(**pos));
@@ -83,32 +85,29 @@ pub fn mark_prey_in_danger(
     }
 }
 
-// Translates prey or prey based on velocity vector, and also rotates it in
+// Translates prey or predator based on velocity vector, and also rotates it in
 // the direction of the vector.
-// TODO: Much nicer design would be to have velocity as another property of
-// each entity, and update the translation solely based on velocity. This would
-// make this function work for both prey and predator.
-fn nudge_entity(
-    time: &Time,
-    vel: Vec3,
-    pos: &mut Translation,
-    rot: &mut Rotation,
+pub fn nudge(
+    time: Res<Time>,
+    mut entity_query: Query<(&Velocity, &mut Translation, &mut Rotation)>,
 ) {
-    let pos_vec = **pos + vel * time.delta_seconds;
-    let pos_vec = pos_vec
-        .truncate()
-        .min(Vec2::splat(conf::MAP_SIZE as f32))
-        .max(Vec2::zero())
-        .extend(0.0);
-    *pos = pos_vec.into();
+    for (vel, mut pos, mut rot) in &mut entity_query.iter() {
+        let pos_vec = **pos + **vel * time.delta_seconds;
+        let pos_vec = pos_vec
+            .truncate()
+            .min(Vec2::splat(conf::MAP_SIZE as f32))
+            .max(Vec2::zero())
+            .extend(0.0);
+        *pos = pos_vec.into();
 
-    // If the velocity vector is not zero vector, rotate the entity in the
-    // direction of its velocity.
-    if !vel.cmpeq(Vec3::zero()).all() {
-        let vel_norm = vel.normalize();
-        // Normalized velocity, find the angle based on the size of the
-        // x component, and then shift it if the y component is negative.
-        let new_rot = vel_norm.x().acos() * vel_norm.y().signum();
-        *rot = Rotation::from_rotation_z(new_rot);
+        // If the velocity vector is not zero vector, rotate the entity in the
+        // direction of its velocity.
+        if !vel.is_zero() {
+            let vel_norm = vel.normalize();
+            // Normalized velocity, find the angle based on the size of the
+            // x component, and then shift it if the y component is negative.
+            let new_rot = vel_norm.x().acos() * vel_norm.y().signum();
+            *rot = Rotation::from_rotation_z(new_rot);
+        }
     }
 }

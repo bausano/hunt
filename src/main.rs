@@ -20,12 +20,16 @@ fn main() {
         .add_resource(resources::FlockUpdateTimer::default())
         // Must be called before any state updates.
         .add_system(entities::predator::reset_world_view.system())
+        // Simulates interactions between prey and predators.
+        .add_system(entities::interact.system())
         // Simulates flocking behavior for prey which isn't in danger. We should
         // run the logic which lets prey spot a predator before this system to
         // avoid needless computation.
         .add_system(entities::prey::flocking_behavior.system())
+        // Moves the predators which are controlled by keyboard.
         .add_system(entities::predator::keyboard_movement.system())
-        .add_system(entities::predator::nudge.system())
+        // Moves all entities along their velocity vectors.
+        .add_system(entities::nudge.system())
         .run();
 }
 
