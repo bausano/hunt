@@ -132,7 +132,7 @@ pub fn flocking_behavior(
 
             // If there is some separation to be sustained with nearby
             // flockmates, apply the force to the acceleration.
-            if separation_dir != Vec3::zero() {
+            if !separation_dir.is_zero() {
                 let separation_force =
                     steer_towards(*iterated_prey.vel, separation_dir);
                 acc += separation_force * conf::prey::weights::SEPARATION_FORCE;
@@ -140,20 +140,26 @@ pub fn flocking_behavior(
         }
 
         // If the entity picked up some acceleration.
-        if acc != Vec3::zero() {
-            // Updates the velocity vector of the prey.
-            let mut vel = **iterated_prey.vel;
-            let dv = acc * conf::prey::RECALCULATE_FLOCKING.as_millis() as f32
-                / 1000.0;
-            vel += dv;
-            let speed = vel.length();
-            let direction = vel / speed;
-            // Unfortunately clamp is still in nightly.
-            let speed =
-                speed.max(conf::prey::MIN_SPEED).min(conf::prey::MAX_SPEED);
-            *iterated_prey.vel = (direction * speed).into();
+        if !acc.is_zero() {
+            iterated_prey.vel.apply_acceleration(
+                acc,
+                conf::prey::RECALCULATE_FLOCKING,
+                clamp_speed,
+            );
         }
     }
+}
+
+/// Given prey's current velocity, we apply force to it.
+pub fn steer_towards(velocity: Velocity, force: Vec3) -> Vec3 {
+    let v = force.normalize() * conf::prey::MAX_SPEED - *velocity;
+    v.min(Vec3::splat(conf::prey::MAX_STEERING_FORCE))
+}
+
+/// Clamps prey speed.
+pub fn clamp_speed(speed: f32) -> f32 {
+    // Unfortunately clamp is still in nightly.
+    speed.max(conf::prey::MIN_SPEED).min(conf::prey::MAX_SPEED)
 }
 
 // If the prey is too close to the wall, it attempts to run away from it.
@@ -179,10 +185,4 @@ fn wall_repelling_force(pos: Vec3) -> Option<Vec3> {
     } else {
         None
     }
-}
-
-/// Given prey's current velocity, we apply force to it.
-fn steer_towards(velocity: Velocity, force: Vec3) -> Vec3 {
-    let v = force.normalize() * conf::prey::MAX_SPEED - *velocity;
-    v.min(Vec3::splat(conf::prey::MAX_STEERING_FORCE))
 }

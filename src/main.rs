@@ -51,7 +51,7 @@ fn camera(mut commands: Commands) {
             0.0,
         ),
         // Let the viewer zoom in and out.
-        scale: 1f32.into(),
+        scale: 1.5f32.into(),
         ..Default::default()
     });
 }

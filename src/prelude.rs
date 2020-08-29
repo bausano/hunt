@@ -21,7 +21,12 @@ impl InstantiateRandom for Translation {
 
 pub trait Vec3Ext {
     fn is_zero(self) -> bool;
+
+    // Calculates euclidean distance in the xy plane.
     fn distance2(self, other: Self) -> f32;
+
+    // Creates a new perpendicular vector.
+    fn perpendicular(self) -> Self;
 }
 
 impl Vec3Ext for Vec3 {
@@ -30,8 +35,12 @@ impl Vec3Ext for Vec3 {
         self.x() == 0.0 && self.y() == 0.0
     }
 
-    // Calculates euclidean distance in the xy plane.
     fn distance2(self, other: Self) -> f32 {
         (self - other).length()
+    }
+
+    fn perpendicular(self) -> Self {
+        // We don't care about z as we play in 2D.
+        Self::new(self.y(), self.x() * -1.0, 0.0)
     }
 }

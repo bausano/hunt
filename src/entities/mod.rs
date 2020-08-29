@@ -27,7 +27,7 @@ use crate::{components::Velocity, prelude::*};
 /// to a predator, it checks whether the predator can see it or whether it's
 /// been eaten.
 pub fn interact(
-    mut prey_query: Query<(&mut Prey, &mut Translation)>,
+    mut prey_query: Query<(&mut Prey, &mut Translation, &mut Velocity)>,
     mut predator_query: Query<(&mut Predator, &Translation)>,
 ) {
     struct PredatorData<'a> {
@@ -49,16 +49,20 @@ pub fn interact(
 
     // This is an inefficient n*k loop, however for our purposes of running the
     // game with well < 10 predators and < 1000 prey it's ok.
-    for (_, pos) in &mut prey_query.iter() {
-        // Collects relationships prey has towards predators.
-        let mut predators_which_eat_me = vec![];
-        let mut predators_which_see_me = vec![];
-        let mut predators_which_i_see = vec![];
+    for (_, prey_pos, mut prey_vel) in &mut prey_query.iter() {
+        // Collects relationships prey has towards predators. We store indexes
+        // in the first two arrays. Indexes point to the predator position in
+        // the `predators` array.
+        let mut predators_which_eat_me = Vec::new();
+        let mut predators_which_see_me = Vec::new();
+        // In this array we store the predator position and the distance between
+        // it and the prey.
+        let mut predators_which_i_see: Vec<(Vec3, f32)> = Vec::new();
 
         // Finds all predators which have one of those relationships with the
         // prey.
         for (predator_index, predator) in predators.iter().enumerate() {
-            let distance = predator.pos.distance2(**pos);
+            let distance = predator.pos.distance2(**prey_pos);
 
             // If the prey is out of visibility radius, it has nothing to worry
             // about. Predator visibility radius is also larger than the one
@@ -75,7 +79,7 @@ pub fn interact(
 
                 // The prey always has lower or same visibility radius.
                 if distance < conf::prey::VIEW_RADIUS {
-                    predators_which_i_see.push(predator_index);
+                    predators_which_i_see.push((predator.pos, distance));
                 }
             }
         }
@@ -87,18 +91,32 @@ pub fn interact(
                 }
             }
 
-            // TODO: Kill the prey. We can have respawning procedure impl later.
+        // TODO: Kill the prey. We can have respawning procedure impl later.
         } else {
             if !predators_which_i_see.is_empty() {
-                println!("I see a predator.");
-                // TODO: Update the prey's velocity.
+                // Calculates difference between the prey and each predator,
+                // which results in a sum of vectors directed opposite to each
+                // predators position.
+                let escape_force = predators_which_i_see.into_iter().fold(
+                    Vec3::zero(),
+                    |acc, (predator_pos, distance)| {
+                        // The more distant the predator is, the less effect
+                        // it has on the final vector.
+                        acc + (**prey_pos - predator_pos) * distance
+                    },
+                );
+
+                let acc = prey::steer_towards(*prey_vel, escape_force);
+                prey_vel.apply_acceleration(
+                    acc,
+                    conf::prey::RECALCULATE_FLOCKING,
+                    prey::clamp_speed,
+                );
             }
 
             for predator_index in predators_which_see_me {
-                println!("I see a prey.");
-
                 if let Some(predator) = predators.get_mut(predator_index) {
-                    predator.rf.spot_prey(**pos);
+                    predator.rf.spot_prey(**prey_pos);
                 }
             }
         }
@@ -133,36 +151,39 @@ pub fn nudge(
 }
 
 // Moves those entities which are controlled by a keyboard.
-//
+// Maybe I can implement a component Config which would allow us to make this
+// generic over both prey and predators.
 fn keyboard_movement(
     time: &Time,
     keyboard_input: &Input<KeyCode>,
     vel: &mut Velocity,
     max_speed: f32,
 ) {
-    // TODO: This should probably be rotated with respect to the current
-    // velocity direction. We use normalized velocity vec as the base, add
-    // unit vec in appropriate direction, and change base to standard.
-    let x_vel = if keyboard_input.pressed(KeyCode::Left) {
-        -1.0
+    // Left right keys rotate the entity. Holding right or left key indefinitely
+    // makes the entity go in circles.
+    let vel_perpendicular = vel.perpendicular().normalize();
+    let left_right = if keyboard_input.pressed(KeyCode::Left) {
+        -vel_perpendicular
     } else if keyboard_input.pressed(KeyCode::Right) {
-        1.0
+        vel_perpendicular
     } else {
-        0.0
+        Vec3::zero()
     };
 
-    let y_vel = if keyboard_input.pressed(KeyCode::Down) {
-        -1.0
+    // Up and down behave normally, that is they move the entity towards
+    // expected border.
+    let up_down = if keyboard_input.pressed(KeyCode::Down) {
+        -Vec3::unit_y()
     } else if keyboard_input.pressed(KeyCode::Up) {
-        1.0
+        Vec3::unit_y()
     } else {
-        0.0
+        Vec3::zero()
     };
 
     let vel_change =
-        Vec3::new(x_vel, y_vel, 0.0) * time.delta_seconds * max_speed;
+        (up_down + left_right) * time.delta_seconds * max_speed;
 
-    if vel_change != Vec3::zero() {
+    if !vel_change.is_zero() {
         // And adds the change in speed to the entity.
         *vel = ((**vel + vel_change).normalize() * max_speed).into();
     }
