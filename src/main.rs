@@ -78,90 +78,91 @@ fn camera(
         println!("Render graph node before: {:?}", node);
     }
 
-    // let window_id = WindowId::new();
-    // create_window_events.send(CreateWindow {
-    //     id: window_id,
-    //     descriptor: WindowDescriptor {
-    //         title: "second window".to_string(),
-    //         ..Default::default()
-    //     },
-    // });
+    let window_id = WindowId::new();
+    create_window_events.send(CreateWindow {
+        id: window_id,
+        descriptor: WindowDescriptor {
+            title: "second window".to_string(),
+            ..Default::default()
+        },
+    });
 
     // add a swapchain node for our new window
-    // render_graph.add_node("swapchain", WindowSwapChainNode::new(window_id));
+    render_graph.add_node("second_swapchain", WindowSwapChainNode::new(window_id));
 
     // add a new depth texture node for our new window
-    //render_graph.add_node(
-    //    "second_window_depth_texture",
-    //    WindowTextureNode::new(
-    //        window_id,
-    //        TextureDescriptor {
-    //            format: TextureFormat::Depth32Float,
-    //            usage: TextureUsage::OUTPUT_ATTACHMENT,
-    //            sample_count: msaa.samples,
-    //            ..Default::default()
-    //        },
-    //    ),
-    //);
+    render_graph.add_node(
+       "second_window_depth_texture",
+       WindowTextureNode::new(
+           window_id,
+           TextureDescriptor {
+               format: TextureFormat::Depth32Float,
+               usage: TextureUsage::OUTPUT_ATTACHMENT,
+               sample_count: msaa.samples,
+               ..Default::default()
+           },
+       ),
+    );
 
     // add a new camera node for our new window
     render_graph
         .add_system_node("secondary_camera", CameraNode::new("Secondary"));
 
     // add a new render pass for our new window / camera
-    // let mut second_window_pass = PassNode::<&MainPass>::new(PassDescriptor {
-    //     color_attachments: vec![msaa.color_attachment_descriptor(
-    //         TextureAttachment::Input("color_attachment".to_string()),
-    //         TextureAttachment::Input("color_resolve_target".to_string()),
-    //         Operations {
-    //             load: LoadOp::Clear(Color::rgb(0.1, 0.1, 0.3)),
-    //             store: true,
-    //         },
-    //     )],
-    //     depth_stencil_attachment: Some(
-    //         RenderPassDepthStencilAttachmentDescriptor {
-    //             attachment: TextureAttachment::Input("depth".to_string()),
-    //             depth_ops: Some(Operations {
-    //                 load: LoadOp::Clear(1.0),
-    //                 store: true,
-    //             }),
-    //             stencil_ops: None,
-    //         },
-    //     ),
-    //     sample_count: msaa.samples,
-    // });
-    let mut main_pass: &mut PassNode<&MainPass> =
-       render_graph.get_node_mut("main_pass").unwrap();
+    let mut second_window_pass = PassNode::<&MainPass>::new(PassDescriptor {
+        color_attachments: vec![msaa.color_attachment_descriptor(
+            TextureAttachment::Input("color_attachment".to_string()),
+            TextureAttachment::Input("color_resolve_target".to_string()),
+            Operations {
+                load: LoadOp::Clear(Color::rgb(0.1, 0.1, 0.3)),
+                store: true,
+            },
+        )],
+        depth_stencil_attachment: Some(
+            RenderPassDepthStencilAttachmentDescriptor {
+                attachment: TextureAttachment::Input("depth".to_string()),
+                depth_ops: Some(Operations {
+                    load: LoadOp::Clear(1.0),
+                    store: true,
+                }),
+                stencil_ops: None,
+            },
+        ),
+        sample_count: msaa.samples,
+    });
+    // let mut main_pass: &mut PassNode<&MainPass> =
+    //    render_graph.get_node_mut("main_pass").unwrap();
 
-    main_pass.add_camera("Secondary");
+    second_window_pass.add_camera("Secondary");
     active_cameras.add("Secondary");
-    // render_graph.add_node("second_pass", second_window_pass);
+    render_graph.add_node("second_pass", second_window_pass);
 
-    // render_graph
-    //     .add_slot_edge(
-    //         "swapchain",
-    //         WindowSwapChainNode::OUT_TEXTURE,
-    //         "second_pass",
-    //         if msaa.samples > 1 {
-    //             "color_resolve_target"
-    //         } else {
-    //             "color_attachment"
-    //         },
-    //     )
-    //     .expect("Cannot add swapchain slot to second pass");
+    render_graph
+        .add_slot_edge(
+            "second_swapchain",
+            WindowSwapChainNode::OUT_TEXTURE,
+            "second_pass",
+            if msaa.samples > 1 {
+                "color_resolve_target"
+            } else {
+                "color_attachment"
+            },
+        )
+        .expect("Cannot add swapchain slot to second pass");
 
-    // render_graph
-    //     .add_slot_edge(
-    //         "main_pass_depth_texture",
-    //         WindowTextureNode::OUT_TEXTURE,
-    //         "second_pass",
-    //         "depth",
-    //     )
-    //     .expect("Cannot add slot edge from main depth texture to second pass");
+    render_graph
+        .add_slot_edge(
+            // "main_pass_depth_texture",
+            "second_window_depth_texture",
+            WindowTextureNode::OUT_TEXTURE,
+            "second_pass",
+            "depth",
+        )
+        .expect("Cannot add slot edge from main depth texture to second pass");
 
-    // render_graph
-    //     .add_node_edge("secondary_camera", "second_pass")
-    //     .expect("Cannot add second camera to second pass");
+    render_graph
+        .add_node_edge("secondary_camera", "second_pass")
+        .expect("Cannot add second camera to second pass");
 
     for node in render_graph.iter_nodes() {
         println!("Render graph node: {:?}", node);
