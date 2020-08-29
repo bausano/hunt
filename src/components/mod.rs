@@ -9,6 +9,7 @@ pub struct KeyboardControlled;
 /// Velocity represents into which direction and with how much magnitude an
 /// entity wants to move.
 #[derive(Shrinkwrap, Default, Clone, Copy)]
+#[shrinkwrap(mutable)]
 pub struct Velocity(pub Vec3);
 
 impl From<Vec3> for Velocity {

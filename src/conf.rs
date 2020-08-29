@@ -62,4 +62,8 @@ pub mod predator {
 
     /// If predator gets at least this close to a prey, it eats it.
     pub const STRIKE_RADIUS: f32 = 30.0;
+
+    /// How many seconds does it take for the predator to go from max speed
+    /// velocity to 0.
+    pub const FRICTION: f32 = 5.0;
 }

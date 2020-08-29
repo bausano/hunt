@@ -125,17 +125,28 @@ pub fn interact(
 
 // Translates prey or predator based on velocity vector, and also rotates it in
 // the direction of the vector.
+//
+// The game space is topological torus in 2 dimensions.
 pub fn nudge(
     time: Res<Time>,
-    mut entity_query: Query<(&Velocity, &mut Translation, &mut Rotation)>,
+    mut entity_query: Query<(&mut Velocity, &mut Translation, &mut Rotation)>,
 ) {
-    for (vel, mut pos, mut rot) in &mut entity_query.iter() {
-        let pos_vec = **pos + **vel * time.delta_seconds;
-        let pos_vec = pos_vec
-            .truncate()
-            .min(Vec2::splat(conf::MAP_SIZE as f32))
-            .max(Vec2::zero())
-            .extend(0.0);
+    for (mut vel, mut pos, mut rot) in &mut entity_query.iter() {
+        let mut pos_vec = **pos + **vel * time.delta_seconds;
+
+        if pos_vec.x() > conf::MAP_SIZE {
+            pos_vec.set_x(pos_vec.x() - conf::MAP_SIZE);
+        } else if pos_vec.x() < 0.0 {
+            pos_vec.set_x(pos_vec.x() + conf::MAP_SIZE);
+        }
+
+        if pos_vec.y() > conf::MAP_SIZE {
+            pos_vec.set_y(pos_vec.y() - conf::MAP_SIZE);
+        } else if pos_vec.y() < 0.0 {
+            pos_vec.set_y(pos_vec.y() + conf::MAP_SIZE);
+        }
+
+        pos_vec.set_z(0.0);
         *pos = pos_vec.into();
 
         // If the velocity vector is not zero vector, rotate the entity in the
@@ -146,6 +157,10 @@ pub fn nudge(
             // x component, and then shift it if the y component is negative.
             let new_rot = vel_norm.x().acos() * vel_norm.y().signum();
             *rot = Rotation::from_rotation_z(new_rot);
+
+            // Also makes the velocity a little bit smaller. Acts as a
+            // "friction".
+            **vel *= 1.0 - (time.delta_seconds / conf::predator::FRICTION);
         }
     }
 }
@@ -161,30 +176,32 @@ fn keyboard_movement(
 ) {
     // Left right keys rotate the entity. Holding right or left key indefinitely
     // makes the entity go in circles.
-    let vel_perpendicular = vel.perpendicular().normalize();
-    let left_right = if keyboard_input.pressed(KeyCode::Left) {
-        -vel_perpendicular
-    } else if keyboard_input.pressed(KeyCode::Right) {
-        vel_perpendicular
+    // If vel was zero, then normalizing would give us gibberish.
+    let left_right = if vel.is_zero() {
+        Vec3::unit_x()
     } else {
-        Vec3::zero()
+        let vel_perpendicular = vel.perpendicular().normalize();
+        if keyboard_input.pressed(KeyCode::Left) {
+            -vel_perpendicular
+        } else if keyboard_input.pressed(KeyCode::Right) {
+            vel_perpendicular
+        } else {
+            Vec3::zero()
+        }
     };
 
-    // Up and down behave normally, that is they move the entity towards
-    // expected border.
-    let up_down = if keyboard_input.pressed(KeyCode::Down) {
-        -Vec3::unit_y()
+    // Up and down keys respectively speed up and slow down the acceleration.
+    let speed = if keyboard_input.pressed(KeyCode::Down) {
+        max_speed * 0.5
     } else if keyboard_input.pressed(KeyCode::Up) {
-        Vec3::unit_y()
+        max_speed * 2.0
     } else {
-        Vec3::zero()
+        max_speed
     };
 
-    let vel_change =
-        (up_down + left_right) * time.delta_seconds * max_speed;
-
-    if !vel_change.is_zero() {
+    let acc = left_right * time.delta_seconds * speed;
+    if !acc.is_zero() {
         // And adds the change in speed to the entity.
-        *vel = ((**vel + vel_change).normalize() * max_speed).into();
+        *vel = ((**vel + acc).normalize() * max_speed).into();
     }
 }
