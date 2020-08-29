@@ -54,7 +54,7 @@ pub mod predator {
     pub const ICON: &str = "assets/predator.png";
 
     /// It's important that the max speed is less than the preys.
-    pub const MAX_SPEED: f32 = 120.0;
+    pub const MAX_SPEED: f32 = 300.0;
 
     /// From what distance do predators spot prey. It should be higher or equal
     /// to prey's view radius.

@@ -27,7 +27,7 @@ use crate::{components::Velocity, prelude::*};
 /// to a predator, it checks whether the predator can see it or whether it's
 /// been eaten.
 pub fn interact(
-    mut prey_query: Query<(&mut Prey, &mut Translation, &mut Velocity)>,
+    mut prey_query: Query<(&mut Translation, &mut Velocity, &Prey)>,
     mut predator_query: Query<(&mut Predator, &Translation)>,
 ) {
     struct PredatorData<'a> {
@@ -49,7 +49,7 @@ pub fn interact(
 
     // This is an inefficient n*k loop, however for our purposes of running the
     // game with well < 10 predators and < 1000 prey it's ok.
-    for (_, prey_pos, mut prey_vel) in &mut prey_query.iter() {
+    for (mut prey_pos, mut prey_vel, ..) in &mut prey_query.iter() {
         // Collects relationships prey has towards predators. We store indexes
         // in the first two arrays. Indexes point to the predator position in
         // the `predators` array.
@@ -91,7 +91,10 @@ pub fn interact(
                 }
             }
 
-        // TODO: Kill the prey. We can have respawning procedure impl later.
+            // Re-spawns the prey at random place somewhere else. This works ok
+            // if the map is very large and there aren't that many predators.
+            // Otherwise prey will spawn straight into the predators.
+            *prey_pos = Translation::random();
         } else {
             if !predators_which_i_see.is_empty() {
                 // Calculates difference between the prey and each predator,
