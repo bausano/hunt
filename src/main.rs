@@ -39,5 +39,8 @@ fn main() {
         .add_system(entities::predator::keyboard_movement.system())
         // Moves all entities along their velocity vectors.
         .add_system(entities::nudge.system())
+        // Allows for zooming of camera and following focused predator.
+        .add_system(components::camera::zoom.system())
+        .add_system(components::camera::follow.system())
         .run();
 }
