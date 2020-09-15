@@ -25,6 +25,7 @@ fn main() {
         .add_resource(resources::FlockUpdateTimer::default())
         .add_default_plugins()
         .add_startup_system(components::camera::new.system())
+        .add_startup_system(components::walls::new.system())
         .add_startup_system(entities::predator::init.system())
         .add_startup_system(entities::prey::init.system())
         // Must be called before any state updates.

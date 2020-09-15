@@ -103,18 +103,12 @@ pub fn interact(
                 let escape_force = predators_which_i_see.into_iter().fold(
                     Vec3::zero(),
                     |acc, (predator_pos, distance)| {
-                        // The more distant the predator is, the less effect
-                        // it has on the final vector.
-                        acc + (**prey_pos - predator_pos) * distance
+                        acc + (**prey_pos - predator_pos) / distance
                     },
-                );
+                ) * conf::prey::weights::ESCAPE_FORCE;
 
                 let acc = prey::steer_towards(*prey_vel, escape_force);
-                prey_vel.apply_acceleration(
-                    acc,
-                    conf::prey::RECALCULATE_FLOCKING,
-                    prey::clamp_speed,
-                );
+                prey_vel.apply_acceleration(acc, prey::clamp_speed);
             }
 
             for predator_index in predators_which_see_me {

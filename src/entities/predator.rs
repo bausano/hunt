@@ -7,7 +7,7 @@
 //! A predator can also be controlled by keyboard for debugging purposes.
 
 use crate::{
-    components::{KeyboardControlled, Velocity, camera},
+    components::{camera, KeyboardControlled, Velocity},
     prelude::*,
 };
 

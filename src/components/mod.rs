@@ -1,4 +1,5 @@
 pub mod camera;
+pub mod walls;
 
 use std::time::Duration;
 
@@ -21,9 +22,22 @@ impl From<Vec3> for Velocity {
 }
 
 impl Velocity {
+    /// Applies immediate acceleration without any time penalty.
+    pub fn apply_acceleration(
+        &mut self,
+        acc: Vec3,
+        speed_clamp: impl FnOnce(f32) -> f32,
+    ) {
+        self.apply_acceleration_over_time(
+            acc,
+            Duration::from_secs(1),
+            speed_clamp,
+        )
+    }
+
     /// Applies acceleration to self given how long should the acceleration
     /// last and max speed.
-    pub fn apply_acceleration(
+    pub fn apply_acceleration_over_time(
         &mut self,
         acc: Vec3,
         time: Duration,

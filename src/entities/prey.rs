@@ -141,7 +141,7 @@ pub fn flocking_behavior(
 
         // If the entity picked up some acceleration.
         if !acc.is_zero() {
-            iterated_prey.vel.apply_acceleration(
+            iterated_prey.vel.apply_acceleration_over_time(
                 acc,
                 conf::prey::RECALCULATE_FLOCKING,
                 clamp_speed,

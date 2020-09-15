@@ -22,7 +22,11 @@ so that your other projects aren't impacted:
 $ rustup override set nightly
 ```
 
-![Screenshot](docs/screenshot_2020_08_28.png)
+![Screenshot](docs/screenshot_2020-09-16.png)
+
+## Controls
+* arrows control player's predator
+* +/- to zoom
 
 <!-- Invisible List of References -->
 [bevy]: https://github.com/bevyengine/bevy
