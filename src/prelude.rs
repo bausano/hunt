@@ -1,6 +1,8 @@
 pub use bevy::prelude::*;
 
+pub use crate::components;
 pub use crate::conf;
+pub use crate::resources;
 
 use std::error::Error;
 

@@ -29,7 +29,7 @@ pub fn zoom(
     for (mut scale, ..) in &mut camera_query.iter() {
         if keyboard_input.pressed(KeyCode::Add) {
             // Zoom in on "+".
-            *scale = (**scale - time.delta_seconds).max(0.5).into();
+            *scale = (**scale - time.delta_seconds).max(1.0).into();
         } else if keyboard_input.pressed(KeyCode::Subtract) {
             // Zoom out on "-".
             *scale = (**scale + time.delta_seconds).min(4.0).into();

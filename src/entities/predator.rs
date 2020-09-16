@@ -101,6 +101,63 @@ pub fn reset_world_view(mut predator_query: Query<&mut Predator>) {
     }
 }
 
+/// If the user clicks "space" then we focus on different predator.
+pub fn change_focus(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut timer: ResMut<resources::KeyPressDelay>,
+    keyboard_input: Res<Input<KeyCode>>,
+    mut focused_predator_query: Query<With<camera::Focus, (Entity, &Predator)>>,
+    mut other_predators_query: Query<
+        Without<camera::Focus, (Entity, &Predator)>,
+    >,
+) {
+    timer.tick(time.delta_seconds);
+    // Only switch focus if space is pressed and when timer has been finished.
+    if !timer.is_finished() || !keyboard_input.pressed(KeyCode::Space) {
+        return;
+    }
+
+    // Collects predators which are not focused.
+    let mut predators = Vec::new();
+    for (predator, ..) in &mut other_predators_query.iter() {
+        predators.push(predator);
+    }
+    if predators.is_empty() {
+        return;
+    }
+    predators.sort();
+
+    // Checks if any predator is focused.
+    let mut focused_predator = None;
+    for (predator, ..) in &mut focused_predator_query.iter() {
+        focused_predator = Some(predator);
+    }
+
+    let predator_to_focus_index = if let Some(focused) = focused_predator {
+        commands.remove_one::<camera::Focus>(focused);
+        // Predator with focused camera cannot be in list of unfocused
+        // predators. Hence only `Err` is possible. We made sure that the
+        // predators array is not empty so we can decrement from the len.
+        predators
+            .binary_search(&focused)
+            .err()
+            .map(|i| i.min(predators.len() - 1))
+    } else if predators.is_empty() {
+        // If there are no predators we cannot focus anyone.
+        None
+    } else {
+        // If there is at least one predator, return first position.
+        Some(0)
+    };
+
+    if let Some(predator_to_focus) =
+        predator_to_focus_index.and_then(|i| predators.get(i))
+    {
+        commands.insert_one(*predator_to_focus, camera::Focus);
+    }
+}
+
 impl Predator {
     /// Adds a new prey position into its world view.
     pub fn spot_prey(&mut self, at: Vec3) {

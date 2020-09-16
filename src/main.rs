@@ -9,11 +9,11 @@
 #[macro_use]
 extern crate shrinkwraprs;
 
-mod components;
+pub mod components;
 pub mod conf;
 mod entities;
 mod prelude;
-mod resources;
+pub mod resources;
 
 use crate::prelude::*;
 
@@ -23,6 +23,7 @@ fn main() {
         // We only do update to the prey velocity every N ms to avoid needless
         // expensive computation.
         .add_resource(resources::FlockUpdateTimer::default())
+        .add_resource(resources::KeyPressDelay::default())
         .add_default_plugins()
         .add_startup_system(components::camera::new.system())
         .add_startup_system(components::walls::new.system())
@@ -38,6 +39,7 @@ fn main() {
         .add_system(entities::prey::flocking_behavior.system())
         // Moves the predators which are controlled by keyboard.
         .add_system(entities::predator::keyboard_movement.system())
+        .add_system(entities::predator::change_focus.system())
         // Moves all entities along their velocity vectors.
         .add_system(entities::nudge.system())
         // Allows for zooming of camera and following focused predator.
