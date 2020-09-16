@@ -22,16 +22,17 @@ pub fn new(mut commands: Commands) {
 /// TODO: If there was a way to make the camera a resource then we could avoid
 /// the query.
 pub fn zoom(
+    time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
     mut camera_query: Query<(&mut Scale, &Main)>,
 ) {
     for (mut scale, ..) in &mut camera_query.iter() {
         if keyboard_input.pressed(KeyCode::Add) {
             // Zoom in on "+".
-            *scale = (**scale - 0.05).max(0.5).into();
+            *scale = (**scale - time.delta_seconds).max(0.5).into();
         } else if keyboard_input.pressed(KeyCode::Subtract) {
             // Zoom out on "-".
-            *scale = (**scale + 0.05).min(4.0).into();
+            *scale = (**scale + time.delta_seconds).min(4.0).into();
         }
     }
 }
