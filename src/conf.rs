@@ -39,11 +39,11 @@ pub mod prey {
     pub const RECALCULATE_FLOCKING: Duration = Duration::from_millis(50);
 
     pub mod weights {
-        pub const WALL_REPELLING_FORCE: f32 = 1.0;
+        pub const WALL_REPELLING_FORCE: f32 = 2.0;
         pub const ALIGNMENT_FORCE: f32 = 1.0;
         pub const SEPARATION_FORCE: f32 = 1.5;
         pub const COHESION_FORCE: f32 = 1.0;
-        pub const ESCAPE_FORCE: f32 = 30.0;
+        pub const ESCAPE_FORCE: f32 = 3.0;
     }
 }
 
@@ -58,7 +58,8 @@ pub mod predator {
     pub const MAX_SPEED: f32 = 300.0;
 
     /// From what distance do predators spot prey. It should be higher or equal
-    /// to prey's view radius.
+    /// to prey's view radius. This also affects the distance from which
+    /// predators see other predators.
     pub const VIEW_RADIUS: f32 = 400.0;
 
     /// If predator gets at least this close to a prey, it eats it.

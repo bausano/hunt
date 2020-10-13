@@ -1,7 +1,9 @@
-# Hunt
+**DEPRECATED** in favour of [Minecraft implementation](https://github.com/bausano/predator-prey-pursuit).
+
+# Prey-predator pursuit
 A simple game designed to train reinforcement learning agents. The server
-exports endpoint for a actor to join the game. The input to this
-endpoint is actors TCP address on which they listen to game updates.
+exports endpoint for an actor to join the game. The input to this
+endpoint is actors UDP address on which they listen to game updates.
 
 An actor can send payload to another endpoint with updates to their direction
 vectors.

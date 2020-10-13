@@ -18,8 +18,8 @@ pub mod resources;
 use crate::prelude::*;
 
 fn main() {
-    App::build()
-        .add_resource(bevy::render::pass::ClearColor(Color::rgb(0.8, 0.8, 0.8)))
+    let mut app = App::build();
+    app.add_resource(bevy::render::pass::ClearColor(Color::rgb(0.8, 0.8, 0.8)))
         // We only do update to the prey velocity every N ms to avoid needless
         // expensive computation.
         .add_resource(resources::FlockUpdateTimer::default())
@@ -37,13 +37,19 @@ fn main() {
         // run the logic which lets prey spot a predator before this system to
         // avoid needless computation.
         .add_system(entities::prey::flocking_behavior.system())
-        // Moves the predators which are controlled by keyboard.
-        .add_system(entities::predator::keyboard_movement.system())
-        .add_system(entities::predator::change_focus.system())
+        // Find hot single predators in your area.
+        .add_system(entities::predator::find_nearby_predators.system());
+
+    #[cfg(feature = "keyboard-control")]
+    app.add_system(entities::predator::keyboard_movement.system());
+
+    // Allows to change camera focus
+    app.add_system(entities::predator::change_camera_focus.system())
         // Moves all entities along their velocity vectors.
         .add_system(entities::nudge.system())
         // Allows for zooming of camera and following focused predator.
         .add_system(components::camera::zoom.system())
-        .add_system(components::camera::follow.system())
-        .run();
+        .add_system(components::camera::follow.system());
+
+    app.run();
 }

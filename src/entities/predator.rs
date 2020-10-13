@@ -6,20 +6,18 @@
 //!
 //! A predator can also be controlled by keyboard for debugging purposes.
 
-use crate::{
-    components::{camera, KeyboardControlled, Velocity},
-    prelude::*,
-};
+use crate::{components::*, prelude::*};
 
 pub struct Predator {
-    // Lists positions of prey nearby. With each tick, this value should get
-    // reset and repopulated.
+    // Lists positions of prey nearby. With each tick, this value is reset.
     nearby_prey: Vec<Vec3>,
+    // Lists positions of nearby predators. With each tick, this value is reset.
+    nearby_predators: Vec<Vec3>,
 }
 
 /// Predators are actors that join over UDP or keyboard actors. When a predator
 /// joins a game, new window with camera focused on them is created.
-/// TODO: Allow predators join over UDP and make keyboard predator optional.
+/// TODO: Allow predators join over UDP.
 pub fn init(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -28,22 +26,65 @@ pub fn init(
     let texture_handle = asset_server
         .load(conf::predator::ICON)
         .expect("Cannot load predator sprite");
+    let predator_sprite = SpriteComponents {
+        material: materials.add(texture_handle.into()),
+        ..Default::default()
+    };
 
-    commands
-        .spawn(SpriteComponents {
-            material: materials.add(texture_handle.into()),
-            ..Default::default()
-        })
-        .with_bundle((
-            Predator::new(),
-            Velocity::default(),
-            Translation::random(),
-            Rotation::default(),
-            KeyboardControlled,
-            camera::Focus,
-        ));
+    #[cfg(feature = "keyboard-control")]
+    commands.spawn(predator_sprite).with_bundle((
+        Predator::new(),
+        Velocity::default(),
+        Translation::random(),
+        Rotation::default(),
+        KeyboardControlled,
+        camera::Focus,
+    ));
 }
 
+/// We find predators which are nearby to each other and update their state.
+pub fn find_nearby_predators(
+    mut predator_query: Query<(&mut Predator, &Translation)>,
+) {
+    let mut predators = Vec::new();
+    let iter = &mut predator_query.iter();
+    for (predator, pos) in iter {
+        predators.push((predator, **pos));
+    }
+    if predators.is_empty() {
+        return;
+    }
+
+    // This gets emptied after each cycle so we can reuse it.
+    let mut neighbours = Vec::new();
+    // We don't want to visit last predator because by that time we will have
+    // visited all other predators and checked whether they are nearby to the
+    // last.
+    for predator_index in 0..(predators.len() - 1) {
+        let predator_pos = predators.get(predator_index).unwrap().1;
+
+        // We've already checked previous predators, so we only check new ones.
+        for other_index in (predator_index + 1)..predators.len() {
+            if let Some((other_predator, other_pos)) =
+                predators.get_mut(other_index)
+            {
+                // If the other predator is nearby currently iterated one, push
+                // to the array of neighbours for both predators.
+                let distance = predator_pos.distance2(*other_pos);
+                if distance < conf::predator::VIEW_RADIUS {
+                    neighbours.push(*other_pos);
+                    other_predator.spot_predator(predator_pos);
+                }
+            }
+        }
+
+        if let Some((predator, _)) = predators.get_mut(predator_index) {
+            predator.spot_predators(&mut neighbours);
+        }
+    }
+}
+
+#[cfg(feature = "keyboard-control")]
 /// Moves those predators which are controlled by keyboard.
 pub fn keyboard_movement(
     time: Res<Time>,
@@ -102,7 +143,7 @@ pub fn reset_world_view(mut predator_query: Query<&mut Predator>) {
 }
 
 /// If the user clicks "space" then we focus on different predator.
-pub fn change_focus(
+pub fn change_camera_focus(
     mut commands: Commands,
     time: Res<Time>,
     mut timer: ResMut<resources::KeyPressDelay>,
@@ -164,6 +205,16 @@ impl Predator {
         self.nearby_prey.push(at);
     }
 
+    /// Adds a new predator position into its world view.
+    pub fn spot_predator(&mut self, at: Vec3) {
+        self.nearby_predators.push(at);
+    }
+
+    /// Adds a new predator position into its world view.
+    pub fn spot_predators(&mut self, positions: &mut Vec<Vec3>) {
+        self.nearby_predators.append(positions);
+    }
+
     /// TODO
     pub fn score(&mut self) {
         println!("Prey eaten!");
@@ -172,6 +223,7 @@ impl Predator {
     fn new() -> Self {
         Self {
             nearby_prey: Vec::new(),
+            nearby_predators: Vec::new(),
         }
     }
 }

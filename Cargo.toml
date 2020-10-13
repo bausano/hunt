@@ -5,6 +5,12 @@ authors = ["Michael <bausanomichal@gmail.com>"]
 edition = "2018"
 description = "Simple game server designed to train RL actors."
 
+[features]
+default = ["keyboard-control"]
+
+# With this feature the server is spawned with a predator controlled with arrows.
+keyboard-control = []
+
 [dependencies]
 bevy = "0.1"
 rand = "0.7"
